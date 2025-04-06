@@ -2,14 +2,14 @@ import { Request, Response } from 'express';
 import { prisma } from '../index';
 import bcrypt from 'bcrypt';
 
-const SALT_ROUNDS = process.env.SALT_ROUNDS || 12;
+const SALT_ROUNDS = Number(process.env.SALT_ROUNDS) || 10;
 
 export const createUser = async (req: Request, res: Response) => {
   try {
     const { email, name, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      return res.status(400).json({ error: req.t('user.create.fieldsRequired') });
     }
 
     const existingUser = await prisma.user.findUnique({
@@ -17,7 +17,7 @@ export const createUser = async (req: Request, res: Response) => {
     });
 
     if (existingUser) {
-      return res.status(400).json({ error: 'A user with the given email already exists' });
+      return res.status(400).json({ error: req.t('user.create.userExists') });
     }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
@@ -32,10 +32,13 @@ export const createUser = async (req: Request, res: Response) => {
 
     // send the user without the password in the response
     const { password: _, ...userWithoutPassword } = user;
-    return res.status(201).json(userWithoutPassword);
+    return res.status(201).json({
+      ...userWithoutPassword,
+      message: req.t('user.create.success')
+    });
   } catch (error) {
     console.error('Error creating user:', error);
-    return res.status(500).json({ error: 'Failed to create user' });
+    return res.status(500).json({ error: req.t('user.create.error') });
   }
 };
 
@@ -54,7 +57,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
     return res.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
-    return res.status(500).json({ error: 'Failed to fetch users' });
+    return res.status(500).json({ error: req.t('user.getAll.error') });
   }
 };
 
@@ -74,13 +77,13 @@ export const getUserById = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: req.t('user.get.notFound') });
     }
 
     return res.json(user);
   } catch (error) {
     console.error('Error fetching user:', error);
-    return res.status(500).json({ error: 'Failed to fetch user' });
+    return res.status(500).json({ error: req.t('user.get.error') });
   }
 };
 
@@ -98,7 +101,7 @@ export const updateUser = async (req: Request, res: Response) => {
       });
 
       if (existingUser) {
-        return res.status(400).json({ error: 'A user with the given email already exists' });
+        return res.status(400).json({ error: req.t('user.update.userExists') });
       }
     }
 
@@ -124,10 +127,13 @@ export const updateUser = async (req: Request, res: Response) => {
       }
     });
 
-    return res.json(updatedUser);
+    return res.json({
+      ...updatedUser,
+      message: req.t('user.update.success')
+    });
   } catch (error) {
     console.error('Error updating user:', error);
-    return res.status(500).json({ error: 'Failed to update user' });
+    return res.status(500).json({ error: req.t('user.update.error') });
   }
 };
 
@@ -141,16 +147,16 @@ export const deleteUser = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: req.t('user.delete.notFound') });
     }
 
     await prisma.user.delete({
       where: { id: Number(id) }
     });
 
-    return res.json({ message: 'User successfully deleted' });
+    return res.json({ message: req.t('user.delete.success') });
   } catch (error) {
     console.error('Error deleting user:', error);
-    return res.status(500).json({ error: 'Failed to delete user' });
+    return res.status(500).json({ error: req.t('user.delete.error') });
   }
 };

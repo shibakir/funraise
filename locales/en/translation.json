@@ -1,0 +1,48 @@
+{
+  "auth": {
+    "login": {
+      "success": "Successfully logged in",
+      "error": "Login error",
+      "invalidCredentials": "Invalid email or password",
+      "fieldsRequired": "Email and password are required",
+      "otherAuthMethod": "This account uses a different authentication method"
+    },
+    "register": {
+      "success": "Successfully registered!",
+      "error": "Registration error",
+      "fieldsRequired": "Name, email and password are required",
+      "userExists": "A user with this email already exists"
+    },
+    "middleware": {
+      "authRequired": "Authorization required",
+      "invalidToken": "Invalid or expired token",
+      "serverError": "Internal server error"
+    }
+  },
+  "user": {
+    "create": {
+      "success": "User created successfully",
+      "error": "Failed to create user",
+      "fieldsRequired": "Email and password are required",
+      "userExists": "A user with the given email already exists"
+    },
+    "update": {
+      "success": "User updated successfully",
+      "error": "Failed to update user",
+      "userExists": "A user with the given email already exists",
+      "notFound": "User not found"
+    },
+    "delete": {
+      "success": "User successfully deleted",
+      "error": "Failed to delete user",
+      "notFound": "User not found"
+    },
+    "get": {
+      "error": "Failed to fetch user",
+      "notFound": "User not found"
+    },
+    "getAll": {
+      "error": "Failed to fetch users"
+    }
+  }
+} 

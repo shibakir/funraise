@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
+import middleware from 'i18next-http-middleware';
+import './config/i18n';
 
 // routes
 import userRoutes from './routes/userRoutes';
@@ -34,6 +36,7 @@ testDatabaseConnection();
 // Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(middleware.handle);
 
 // routes
 app.use('/api/auth', authRoutes);

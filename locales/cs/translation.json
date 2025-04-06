@@ -1,0 +1,48 @@
+{
+  "auth": {
+    "login": {
+      "success": "Přihlášení proběhlo úspěšně",
+      "error": "Chyba přihlášení",
+      "invalidCredentials": "Neplatný email nebo heslo",
+      "fieldsRequired": "Email a heslo jsou povinné",
+      "otherAuthMethod": "Tento účet používá jinou metodu ověřování"
+    },
+    "register": {
+      "success": "Registrace byla úspěšně dokončena",
+      "error": "Chyba registrace",
+      "fieldsRequired": "Jméno, email a heslo jsou povinné",
+      "userExists": "Uživatel s tímto emailem již existuje"
+    },
+    "middleware": {
+      "authRequired": "Vyžaduje se autorizace",
+      "invalidToken": "Neplatný nebo expirovaný token",
+      "serverError": "Vnitřní chyba serveru"
+    }
+  },
+  "user": {
+    "create": {
+      "success": "Uživatel byl úspěšně vytvořen",
+      "error": "Nepodařilo se vytvořit uživatele",
+      "fieldsRequired": "Email a heslo jsou povinné",
+      "userExists": "Uživatel s tímto emailem již existuje"
+    },
+    "update": {
+      "success": "Uživatel byl úspěšně aktualizován",
+      "error": "Nepodařilo se aktualizovat uživatele",
+      "userExists": "Uživatel s tímto emailem již existuje",
+      "notFound": "Uživatel nebyl nalezen"
+    },
+    "delete": {
+      "success": "Uživatel byl úspěšně odstraněn",
+      "error": "Nepodařilo se odstranit uživatele",
+      "notFound": "Uživatel nebyl nalezen"
+    },
+    "get": {
+      "error": "Nepodařilo se získat uživatele",
+      "notFound": "Uživatel nebyl nalezen"
+    },
+    "getAll": {
+      "error": "Nepodařilo se získat seznam uživatelů"
+    }
+  }
+} 
