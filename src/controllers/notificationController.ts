@@ -198,7 +198,7 @@ export const markNotificationAsRead = async (req: Request, res: Response) => {
     });
   }
 };
-
+/*
 export const markAllNotificationsAsRead = async (req: Request, res: Response) => {
   const { userId } = req.params;
   
@@ -239,6 +239,7 @@ export const markAllNotificationsAsRead = async (req: Request, res: Response) =>
     });
   }
 };
+*/
 
 export const updateDeliveryStatus = async (req: Request, res: Response) => {
   const { deliveryId } = req.params;

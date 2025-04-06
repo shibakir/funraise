@@ -1,18 +1,11 @@
 import express from 'express';
+
 import {
   getNotificationById,
   createNotification,
   markNotificationAsRead,
   updateDeliveryStatus
 } from '../controllers/notificationController';
-
-import {
-  getUserNotificationPreferences,
-  setUserNotificationPreference,
-  deleteUserNotificationPreference,
-  getUserNotificationPreferenceStatus,
-  initUserNotificationPreferences
-} from '../controllers/userNotificationPreferenceController';
 
 import {
   getAllNotificationTypes,
@@ -33,17 +26,10 @@ import {
 const router = express.Router();
 
 // NOTIFICATION ROUTES
-router.get('/notifications/:id', getNotificationById);
-router.post('/notifications', createNotification);
-router.patch('/notifications/:id/read', markNotificationAsRead);
-router.patch('/deliveries/:deliveryId/status', updateDeliveryStatus);
-
-// USER NOTIFICATION PREFERENCES ROUTES
-router.get('/preferences/user/:userId', getUserNotificationPreferences);
-router.post('/preferences/user/:userId', setUserNotificationPreference);
-router.get('/preferences/user/:userId/type/:typeId/channel/:channelId', getUserNotificationPreferenceStatus);
-router.delete('/preferences/:preferenceId', deleteUserNotificationPreference);
-router.post('/preferences/user/:userId/init', initUserNotificationPreferences);
+router.get('/:id', getNotificationById);
+router.post('/', createNotification);
+router.patch('/:id/read', markNotificationAsRead); // ? TODO
+router.patch('/deliveries/:deliveryId/status', updateDeliveryStatus); // ? TODO
 
 // NOTIFICATION TYPES ROUTES
 router.get('/types', getAllNotificationTypes);

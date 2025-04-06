@@ -1,4 +1,5 @@
 import express from 'express';
+
 import {
     createUser,
     getAllUsers,
@@ -17,8 +18,25 @@ import {
 
 import {
     getUserNotifications,
-    markAllNotificationsAsRead
+    //markAllNotificationsAsRead
 } from '../controllers/notificationController';
+
+import {
+    getUserNotificationPreferences,
+    setUserNotificationPreference,
+    getUserNotificationPreferenceStatus,
+    deleteUserNotificationPreference,
+    initUserNotificationPreferences
+} from '../controllers/userNotificationPreferenceController';
+
+import {
+    getUserTransactions,
+    getUserBalance
+} from '../controllers/transactionController';
+
+import {
+    getUserEvents
+} from '../controllers/eventController';
 
 const router = express.Router();
 
@@ -38,6 +56,20 @@ router.patch('/:id/progress/:progressId', updateCriterionProgress);
 
 // USER NOTIFICATIONS ROUTES
 router.get('/:id/notifications', getUserNotifications);
-router.patch('/:id/notifications/read-all', markAllNotificationsAsRead);
+//router.patch('/:id/notifications/read-all', markAllNotificationsAsRead);
+
+// USER NOTIFICATION PREFERENCES ROUTES
+router.get('/:userId/notification-preferences', getUserNotificationPreferences);
+router.post('/:userId/notification-preferences', setUserNotificationPreference);
+router.get('/:userId/notification-preferences/types/:typeId/channels/:channelId', getUserNotificationPreferenceStatus);
+router.delete('/:userId/notification-preferences/:preferenceId', deleteUserNotificationPreference);
+router.post('/:userId/notification-preferences', initUserNotificationPreferences);
+
+// USER TRANSACTIONS ROUTES
+router.get('/:userId/transactions', getUserTransactions);
+router.get('/:userId/balance', getUserBalance); // ? TODO
+
+// USER EVENTS ROUTES
+router.get('/:userId/events', getUserEvents);
 
 export default router; 
