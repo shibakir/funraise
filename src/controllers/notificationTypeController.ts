@@ -8,7 +8,7 @@ export const getAllNotificationTypes = async (req: Request, res: Response) => {
     res.status(200).json(notificationTypes);
   } catch (error) {
     res.status(500).json({ 
-      error: req.t('errors.notificationType.fetch', 'Error fetching notification types') 
+      error: req.t('notificationType.getAll.error', 'Error fetching notification types') 
     });
   }
 };
@@ -23,14 +23,14 @@ export const getNotificationTypeById = async (req: Request, res: Response) => {
 
     if (!notificationType) {
       return res.status(404).json({ 
-        error: req.t('errors.notificationType.notFound', 'Notification type not found') 
+        error: req.t('notificationType.get.notFound', 'Notification type not found') 
       });
     }
     
     res.status(200).json(notificationType);
   } catch (error) {
     res.status(500).json({ 
-      error: req.t('errors.notificationType.fetchById', 'Error fetching notification type') 
+      error: req.t('notificationType.get.error', 'Error fetching notification type') 
     });
   }
 };
@@ -40,7 +40,7 @@ export const createNotificationType = async (req: Request, res: Response) => {
   
   if (!name) {
     return res.status(400).json({ 
-      error: req.t('errors.notificationType.nameRequired', 'Type name is required') 
+      error: req.t('notificationType.create.nameRequired', 'Type name is required') 
     });
   }
   
@@ -57,12 +57,12 @@ export const createNotificationType = async (req: Request, res: Response) => {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
         return res.status(400).json({ 
-          error: req.t('errors.notificationType.nameExists', 'Notification type with this name already exists') 
+          error: req.t('notificationType.create.nameExists', 'Notification type with this name already exists') 
         });
       }
     }
     res.status(500).json({ 
-      error: req.t('errors.notificationType.create', 'Error creating notification type') 
+      error: req.t('notificationType.create.error', 'Error creating notification type') 
     });
   }
 };
@@ -73,7 +73,7 @@ export const updateNotificationType = async (req: Request, res: Response) => {
   
   if (!name) {
     return res.status(400).json({ 
-      error: req.t('errors.notificationType.nameRequired', 'Notification type name is required') 
+      error: req.t('notificationType.update.nameRequired', 'Notification type name is required') 
     });
   }
   
@@ -91,17 +91,17 @@ export const updateNotificationType = async (req: Request, res: Response) => {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2025') {
         return res.status(404).json({ 
-          error: req.t('errors.notificationType.notFound', 'Notification type not found') 
+          error: req.t('notificationType.update.notFound', 'Notification type not found') 
         });
       }
       if (error.code === 'P2002') {
         return res.status(400).json({ 
-          error: req.t('errors.notificationType.nameExists', 'Notification type with this name already exists') 
+          error: req.t('notificationType.update.nameExists', 'Notification type with this name already exists') 
         });
       }
     }
     res.status(500).json({ 
-      error: req.t('errors.notificationType.update', 'Error updating notification type') 
+      error: req.t('notificationType.update.error', 'Error updating notification type') 
     });
   }
 };
@@ -115,18 +115,18 @@ export const deleteNotificationType = async (req: Request, res: Response) => {
     });
     
     res.status(200).json({ 
-      message: req.t('success.notificationType.deleted', 'Notification type successfully deleted') 
+      message: req.t('notificationType.delete.success', 'Notification type successfully deleted') 
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2025') {
         return res.status(404).json({ 
-          error: req.t('errors.notificationType.notFound', 'Notification type not found') 
+          error: req.t('notificationType.delete.notFound', 'Notification type not found') 
         });
       }
     }
     res.status(500).json({ 
-      error: req.t('errors.notificationType.delete', 'Error deleting notification type') 
+      error: req.t('notificationType.delete.error', 'Error deleting notification type') 
     });
   }
 };

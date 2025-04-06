@@ -17,7 +17,7 @@ export const getUserNotificationPreferences = async (req: Request, res: Response
     res.status(200).json(userPreferences);
   } catch (error) {
     res.status(500).json({ 
-      error: req.t('errors.preference.fetch', 'Error getting user notification preferences') 
+      error: req.t('preference.getAll.error', 'Error getting user notification preferences') 
     });
   }
 };
@@ -28,7 +28,7 @@ export const setUserNotificationPreference = async (req: Request, res: Response)
   
   if (!notificationTypeId || !notificationChannelId) {
     return res.status(400).json({ 
-      error: req.t('errors.preference.requiredFields', 'Notification type ID and channel ID are required') 
+      error: req.t('preference.set.fieldsRequired', 'Notification type ID and channel ID are required') 
     });
   }
 
@@ -40,7 +40,7 @@ export const setUserNotificationPreference = async (req: Request, res: Response)
     
     if (!user) {
       return res.status(404).json({ 
-        error: req.t('errors.user.notFound', 'User not found') 
+        error: req.t('user.get.notFound', 'User not found') 
       });
     }
     
@@ -51,7 +51,7 @@ export const setUserNotificationPreference = async (req: Request, res: Response)
     
     if (!notificationType) {
       return res.status(404).json({ 
-        error: req.t('errors.notificationType.notFound', 'Notification type not found') 
+        error: req.t('notificationType.get.notFound', 'Notification type not found') 
       });
     }
     
@@ -62,7 +62,7 @@ export const setUserNotificationPreference = async (req: Request, res: Response)
     
     if (!notificationChannel) {
       return res.status(404).json({ 
-        error: req.t('errors.notificationChannel.notFound', 'Notification channel not found') 
+        error: req.t('notificationChannel.get.notFound', 'Notification channel not found') 
       });
     }
     
@@ -105,7 +105,7 @@ export const setUserNotificationPreference = async (req: Request, res: Response)
     res.status(200).json(preference);
   } catch (error) {
     res.status(500).json({ 
-      error: req.t('errors.preference.update', 'Error setting notification preference') 
+      error: req.t('preference.set.error', 'Error setting notification preference') 
     });
   }
 };
@@ -119,18 +119,18 @@ export const deleteUserNotificationPreference = async (req: Request, res: Respon
     });
     
     res.status(200).json({ 
-      message: req.t('success.preference.deleted', 'Notification preference successfully deleted') 
+      message: req.t('preference.delete.success', 'Notification preference successfully deleted') 
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2025') {
         return res.status(404).json({ 
-          error: req.t('errors.preference.notFound', 'Notification preference not found') 
+          error: req.t('preference.get.notFound', 'Notification preference not found') 
         });
       }
     }
     res.status(500).json({ 
-      error: req.t('errors.preference.delete', 'Error deleting notification preference') 
+      error: req.t('preference.delete.error', 'Error deleting notification preference') 
     });
   }
 };
@@ -153,14 +153,14 @@ export const getUserNotificationPreferenceStatus = async (req: Request, res: Res
     
     if (!preference) {
       return res.status(404).json({ 
-        error: req.t('errors.preference.notFound', 'Notification preference not found') 
+        error: req.t('preference.get.notFound', 'Notification preference not found') 
       });
     }
     
     res.status(200).json(preference);
   } catch (error) {
     res.status(500).json({ 
-      error: req.t('errors.preference.fetchStatus', 'Error getting notification preference status') 
+      error: req.t('preference.getStatus.error', 'Error getting notification preference status') 
     });
   }
 };
@@ -176,7 +176,7 @@ export const initUserNotificationPreferences = async (req: Request, res: Respons
     
     if (!user) {
       return res.status(404).json({ 
-        error: req.t('errors.user.notFound', 'User not found') 
+        error: req.t('user.get.notFound', 'User not found') 
       });
     }
     
@@ -216,12 +216,12 @@ export const initUserNotificationPreferences = async (req: Request, res: Respons
     }
     
     res.status(200).json({ 
-      message: req.t('success.preference.initialized', 'User notification preferences successfully initialized'), 
+      message: req.t('preference.init.success', 'User notification preferences successfully initialized'), 
       count: preferences.length 
     });
   } catch (error) {
     res.status(500).json({ 
-      error: req.t('errors.preference.initialize', 'Error initializing user notification preferences') 
+      error: req.t('preference.init.error', 'Error initializing user notification preferences') 
     });
   }
 };

@@ -6,7 +6,7 @@ export const createEvent = async (req: Request, res: Response) => {
     const { userId, name, description, status } = req.body;
 
     if (!userId || !name || !status) {
-      return res.status(400).json({ error: 'UserId, name, and status are required' });
+      return res.status(400).json({ error: req.t('event.create.fieldsRequired') });
     }
 
     const user = await prisma.user.findUnique({
@@ -14,7 +14,7 @@ export const createEvent = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: req.t('event.create.userNotFound') });
     }
 
     const event = await prisma.event.create({
@@ -27,10 +27,13 @@ export const createEvent = async (req: Request, res: Response) => {
       }
     });
 
-    return res.status(201).json(event);
+    return res.status(201).json({
+      ...event,
+      message: req.t('event.create.success')
+    });
   } catch (error) {
     console.error('Error creating event:', error);
-    return res.status(500).json({ error: 'Failed to create event' });
+    return res.status(500).json({ error: req.t('event.create.error') });
   }
 };
 
@@ -44,7 +47,7 @@ export const getAllEvents = async (req: Request, res: Response) => {
     return res.json(events);
   } catch (error) {
     console.error('Error fetching events:', error);
-    return res.status(500).json({ error: 'Failed to fetch events' });
+    return res.status(500).json({ error: req.t('event.getAll.error') });
   }
 };
 
@@ -58,13 +61,13 @@ export const getEventById = async (req: Request, res: Response) => {
     });
 
     if (!event) {
-      return res.status(404).json({ error: 'Event not found' });
+      return res.status(404).json({ error: req.t('event.get.notFound') });
     }
 
     return res.json(event);
   } catch (error) {
     console.error('Error fetching event:', error);
-    return res.status(500).json({ error: 'Failed to fetch event' });
+    return res.status(500).json({ error: req.t('event.get.error') });
   }
 };
 
@@ -77,7 +80,7 @@ export const getUserEvents = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: req.t('event.getUserEvents.userNotFound') });
     }
 
     const events = await prisma.event.findMany({
@@ -88,7 +91,7 @@ export const getUserEvents = async (req: Request, res: Response) => {
     return res.json(events);
   } catch (error) {
     console.error('Error fetching user events:', error);
-    return res.status(500).json({ error: 'Failed to fetch events' });
+    return res.status(500).json({ error: req.t('event.getUserEvents.error') });
   }
 };
 
@@ -102,7 +105,7 @@ export const updateEvent = async (req: Request, res: Response) => {
     });
 
     if (!existingEvent) {
-      return res.status(404).json({ error: 'Event not found' });
+      return res.status(404).json({ error: req.t('event.update.notFound') });
     }
 
     const updatedEvent = await prisma.event.update({
@@ -116,10 +119,13 @@ export const updateEvent = async (req: Request, res: Response) => {
       include: { user: { select: { id: true, email: true, name: true } } }
     });
 
-    return res.json(updatedEvent);
+    return res.json({
+      ...updatedEvent,
+      message: req.t('event.update.success')
+    });
   } catch (error) {
     console.error('Error updating event:', error);
-    return res.status(500).json({ error: 'Failed to update event' });
+    return res.status(500).json({ error: req.t('event.update.error') });
   }
 };
 
@@ -132,16 +138,16 @@ export const deleteEvent = async (req: Request, res: Response) => {
     });
 
     if (!event) {
-      return res.status(404).json({ error: 'Event not found' });
+      return res.status(404).json({ error: req.t('event.delete.notFound') });
     }
 
     await prisma.event.delete({
       where: { id: Number(id) }
     });
 
-    return res.json({ message: 'Event successfully deleted' });
+    return res.json({ message: req.t('event.delete.success') });
   } catch (error) {
     console.error('Error deleting event:', error);
-    return res.status(500).json({ error: 'Failed to delete event' });
+    return res.status(500).json({ error: req.t('event.delete.error') });
   }
 }; 

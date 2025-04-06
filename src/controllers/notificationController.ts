@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { prisma } from '../index';
+import { Prisma } from '@prisma/client';
 
 export const getUserNotifications = async (req: Request, res: Response) => {
   const { userId } = req.params;
@@ -58,7 +59,9 @@ export const getUserNotifications = async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ error: 'Error getting user notifications' });
+    res.status(500).json({ 
+      error: req.t('notification.getAll.error', 'Error getting user notifications') 
+    });
   }
 };
 
@@ -75,12 +78,16 @@ export const getNotificationById = async (req: Request, res: Response) => {
     });
     
     if (!notification) {
-      return res.status(404).json({ error: 'Notification not found' });
+      return res.status(404).json({ 
+        error: req.t('notification.get.notFound', 'Notification not found') 
+      });
     }
     
     res.status(200).json(notification);
   } catch (error) {
-    res.status(500).json({ error: 'Error getting notification' });
+    res.status(500).json({ 
+      error: req.t('notification.get.error', 'Error getting notification') 
+    });
   }
 };
 
@@ -89,7 +96,7 @@ export const createNotification = async (req: Request, res: Response) => {
   
   if (!title || !content || !notificationTypeId || !userIds || !Array.isArray(userIds) || userIds.length === 0) {
     return res.status(400).json({ 
-      error: 'All required fields must be filled (title, content, notification type, user IDs)' 
+      error: req.t('notification.create.fieldsRequired', 'All required fields must be filled (title, content, notification type, user IDs)') 
     });
   }
   
@@ -100,7 +107,9 @@ export const createNotification = async (req: Request, res: Response) => {
     });
     
     if (!notificationType) {
-      return res.status(404).json({ error: 'Notification type not found' });
+      return res.status(404).json({ 
+        error: req.t('notificationType.get.notFound', 'Notification type not found') 
+      });
     }
     
     // get all channels
@@ -157,10 +166,12 @@ export const createNotification = async (req: Request, res: Response) => {
     res.status(201).json({ 
       notification, 
       deliveries, 
-      message: `Notification created, delivery scheduled for ${deliveries.length} recipients` 
+      message: req.t('notification.create.success', 'Notification created successfully') 
     });
   } catch (error) {
-    res.status(500).json({ error: 'Error creating notification' });
+    res.status(500).json({ 
+      error: req.t('notification.create.error', 'Error creating notification') 
+    });
   }
 };
 
@@ -175,7 +186,16 @@ export const markNotificationAsRead = async (req: Request, res: Response) => {
     
     res.status(200).json(notification);
   } catch (error) {
-    res.status(500).json({ error: 'Error updating notification status' });
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return res.status(404).json({ 
+          error: req.t('notification.get.notFound', 'Notification not found') 
+        });
+      }
+    }
+    res.status(500).json({ 
+      error: req.t('notification.markRead.error', 'Error updating notification status') 
+    });
   }
 };
 
@@ -210,11 +230,13 @@ export const markAllNotificationsAsRead = async (req: Request, res: Response) =>
     });
     
     res.status(200).json({ 
-      message: `All notifications marked as read`, 
+      message: req.t('notification.markAllRead.success', 'All notifications marked as read'), 
       count: notificationIds.length 
     });
   } catch (error) {
-    res.status(500).json({ error: 'Error updating notification status' });
+    res.status(500).json({ 
+      error: req.t('notification.markAllRead.error', 'Error updating notification status') 
+    });
   }
 };
 
@@ -223,7 +245,9 @@ export const updateDeliveryStatus = async (req: Request, res: Response) => {
   const { status, failureReason } = req.body;
   
   if (!status) {
-    return res.status(400).json({ error: 'Delivery status is required' });
+    return res.status(400).json({ 
+      error: req.t('notification.delivery.update.statusRequired', 'Delivery status is required') 
+    });
   }
   
   try {
@@ -246,6 +270,15 @@ export const updateDeliveryStatus = async (req: Request, res: Response) => {
     
     res.status(200).json(delivery);
   } catch (error) {
-    res.status(500).json({ error: 'Error updating delivery status' });
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2025') {
+        return res.status(404).json({ 
+          error: req.t('notification.delivery.get.notFound', 'Delivery not found') 
+        });
+      }
+    }
+    res.status(500).json({ 
+      error: req.t('notification.delivery.update.error', 'Error updating delivery status') 
+    });
   }
 };

@@ -44,5 +44,194 @@
     "getAll": {
       "error": "Failed to fetch users"
     }
+  },
+  "event": {
+    "create": {
+      "success": "Event created successfully",
+      "error": "Failed to create event",
+      "fieldsRequired": "User ID, name, and status are required",
+      "userNotFound": "User not found"
+    },
+    "update": {
+      "success": "Event updated successfully",
+      "error": "Failed to update event",
+      "notFound": "Event not found"
+    },
+    "delete": {
+      "success": "Event successfully deleted",
+      "error": "Failed to delete event",
+      "notFound": "Event not found"
+    },
+    "get": {
+      "error": "Failed to fetch event",
+      "notFound": "Event not found"
+    },
+    "getAll": {
+      "error": "Failed to fetch events"
+    },
+    "getUserEvents": {
+      "error": "Failed to fetch user events",
+      "userNotFound": "User not found"
+    }
+  },
+  "transaction": {
+    "create": {
+      "success": "Transaction created successfully",
+      "error": "Failed to create transaction",
+      "fieldsRequired": "User ID and amount are required",
+      "userNotFound": "User not found"
+    },
+    "getUserTransactions": {
+      "error": "Failed to fetch user transactions",
+      "userNotFound": "User not found"
+    },
+    "get": {
+      "error": "Failed to fetch transaction",
+      "notFound": "Transaction not found"
+    },
+    "getAll": {
+      "error": "Failed to fetch transactions"
+    },
+    "getUserBalance": {
+      "error": "Failed to calculate user balance",
+      "userNotFound": "User not found"
+    }
+  },
+  "participation": {
+    "create": {
+      "success": "Participation created successfully",
+      "error": "Failed to create participation",
+      "fieldsRequired": "User ID, event ID and deposit are required",
+      "userNotFound": "User not found",
+      "eventNotFound": "Event not found",
+      "insufficientFunds": "Insufficient funds"
+    },
+    "getUserParticipations": {
+      "error": "Failed to fetch user participations",
+      "userNotFound": "User not found"
+    },
+    "getEventParticipations": {
+      "error": "Failed to fetch event participations",
+      "eventNotFound": "Event not found"
+    },
+    "get": {
+      "error": "Failed to fetch participation",
+      "notFound": "Participation not found"
+    },
+    "delete": {
+      "error": "Failed to delete participation",
+      "notFound": "Participation not found",
+      "success": "Participation successfully deleted"
+    },
+    "increaseDeposit": {
+      "error": "Failed to increase deposit",
+      "notFound": "Participation not found",
+      "amountRequired": "Amount to increase is required",
+      "insufficientFunds": "Insufficient funds",
+      "success": "Deposit increased successfully"
+    }
+  },
+  "notificationType": {
+    "getAll": {
+      "error": "Error fetching notification types"
+    },
+    "get": {
+      "notFound": "Notification type not found",
+      "error": "Error fetching notification type"
+    },
+    "create": {
+      "nameRequired": "Notification type name is required",
+      "nameExists": "Notification type with this name already exists",
+      "error": "Error creating notification type"
+    },
+    "update": {
+      "nameRequired": "Notification type name is required",
+      "notFound": "Notification type not found",
+      "nameExists": "Notification type with this name already exists",
+      "error": "Error updating notification type"
+    },
+    "delete": {
+      "success": "Notification type successfully deleted",
+      "notFound": "Notification type not found",
+      "error": "Error deleting notification type"
+    }
+  },
+  "notificationChannel": {
+    "getAll": {
+      "error": "Error fetching notification channels"
+    },
+    "get": {
+      "notFound": "Notification channel not found",
+      "error": "Error fetching notification channel"
+    },
+    "create": {
+      "nameRequired": "Notification channel name is required",
+      "nameExists": "Notification channel with this name already exists",
+      "error": "Error creating notification channel"
+    },
+    "update": {
+      "nameRequired": "Notification channel name is required",
+      "notFound": "Notification channel not found",
+      "nameExists": "Notification channel with this name already exists",
+      "error": "Error updating notification channel"
+    },
+    "delete": {
+      "success": "Notification channel successfully deleted",
+      "notFound": "Notification channel not found",
+      "error": "Error deleting notification channel"
+    }
+  },
+  "preference": {
+    "getAll": {
+      "error": "Error fetching user notification preferences"
+    },
+    "get": {
+      "notFound": "Notification preference not found"
+    },
+    "set": {
+      "fieldsRequired": "Notification type ID and channel ID are required",
+      "error": "Error setting notification preference"
+    },
+    "getStatus": {
+      "error": "Error fetching notification preference status"
+    },
+    "delete": {
+      "success": "Notification preference successfully deleted",
+      "error": "Error deleting notification preference"
+    },
+    "init": {
+      "success": "User notification preferences successfully initialized",
+      "error": "Error initializing user notification preferences"
+    }
+  },
+  "notification": {
+    "getAll": {
+      "error": "Error fetching user notifications"
+    },
+    "get": {
+      "notFound": "Notification not found",
+      "error": "Error fetching notification"
+    },
+    "create": {
+      "fieldsRequired": "All required fields must be filled (title, content, notification type, user IDs)",
+      "success": "Notification successfully created",
+      "error": "Error creating notification"
+    },
+    "markRead": {
+      "error": "Error marking notification as read"
+    },
+    "markAllRead": {
+      "success": "All notifications marked as read",
+      "error": "Error marking all notifications as read"
+    },
+    "delivery": {
+      "get": {
+        "notFound": "Notification delivery not found"
+      },
+      "update": {
+        "statusRequired": "Delivery status is required",
+        "error": "Error updating delivery status"
+      }
+    }
   }
 } 

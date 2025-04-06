@@ -2,7 +2,21 @@ import { prisma } from '../index';
 import nodemailer from 'nodemailer';
 import { Prisma } from '@prisma/client';
 
-// EMAIL TRANSPORTER
+// Constants for log messages
+const LOG_MESSAGES = {
+  PROCESSING: 'Processing %d pending deliveries',
+  UNKNOWN_CHANNEL: 'Unknown notification channel: %s',
+  ERROR_DELIVERY: 'Error delivering notification ID %d:',
+  DELIVERY_NOT_FOUND: 'Delivery with ID %d not found',
+  FAILURE_UPDATE: 'Failed to update delivery status %d:',
+  PUSH_SENDING: '[PUSH] Sending notification to user %d: %s',
+  ERROR_EVENT: 'Error sending event notification:',
+  ERROR_ACHIEVEMENT: 'Error sending achievement notification:',
+  PRISMA_ERROR: 'Prisma error sending %s notification: %s',
+  TYPE_NOT_FOUND: 'Notification type %s not found'
+};
+
+// Email transporter
 const emailTransporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST || 'smtp.example.com',
   port: Number(process.env.EMAIL_PORT) || 587,
@@ -13,9 +27,11 @@ const emailTransporter = nodemailer.createTransport({
   }
 });
 
+/**
+ * Process and send notifications
+ */
 export const processNotificationDeliveries = async () => {
   try {
-    // get all pending deliveries
     const pendingDeliveries = await prisma.notificationDelivery.findMany({
       where: {
         status: 'PENDING'
@@ -27,29 +43,26 @@ export const processNotificationDeliveries = async () => {
       }
     });
     
-    console.log(`Processing ${pendingDeliveries.length} pending deliveries`);
+    console.log(LOG_MESSAGES.PROCESSING, pendingDeliveries.length);
     
-    // process each delivery
     for (const delivery of pendingDeliveries) {
       try {
-        // depending on the notification channel, select the delivery method
         switch (delivery.notificationChannel.name) {
           case 'EMAIL':
             await sendEmailNotification(delivery);
             break;
           case 'IN_APP':
-            // for in-app notifications, just mark as sent
             await markDeliveryAsSent(delivery.id);
             break;
           case 'PUSH':
             await sendPushNotification(delivery);
             break;
           default:
-            console.warn(`Unknown notification channel: ${delivery.notificationChannel.name}`);
+            console.warn(LOG_MESSAGES.UNKNOWN_CHANNEL, delivery.notificationChannel.name);
             await markDeliveryAsFailed(delivery.id, 'Unknown notification channel');
         }
       } catch (error) {
-        console.error(`Error delivering notification ID ${delivery.id}:`, error);
+        console.error(LOG_MESSAGES.ERROR_DELIVERY, delivery.id, error);
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         await markDeliveryAsFailed(delivery.id, errorMessage);
       }
@@ -57,7 +70,7 @@ export const processNotificationDeliveries = async () => {
     
     return `Processed ${pendingDeliveries.length} notifications`;
   } catch (error) {
-    console.error('Error processing notifications:', error);
+    console.error(LOG_MESSAGES.ERROR_EVENT, error);
     throw error;
   }
 };
@@ -75,9 +88,12 @@ interface NotificationDelivery {
   userId: number;
 }
 
+/**
+ * Send email notification
+ */
 const sendEmailNotification = async (delivery: NotificationDelivery) => {
   if (!delivery.user.email) {
-    throw new Error('Адрес электронной почты не найден');
+    throw new Error('Email address not found');
   }
   
   const mailOptions = {
@@ -89,26 +105,29 @@ const sendEmailNotification = async (delivery: NotificationDelivery) => {
         <h2>${delivery.notification.title}</h2>
         <p>${delivery.notification.content}</p>
         <hr>
-        <p style="font-size: 12px; color: #777;">Это автоматическое уведомление. Пожалуйста, не отвечайте на это письмо.</p>
+        <p style="font-size: 12px; color: #777;">This is an automated notification. Please do not reply to this email.</p>
       </div>
     `
   };
   
-  // Отправка письма
   await emailTransporter.sendMail(mailOptions);
-  
-  // Обновление статуса доставки
   await markDeliveryAsSent(delivery.id);
 };
 
+/**
+ * Send push notification
+ */
 const sendPushNotification = async (delivery: NotificationDelivery) => {
   // TODO: implement push notification
-  console.log(`[PUSH] Sending notification to user ${delivery.userId}: ${delivery.notification.title}`);
+  console.log(LOG_MESSAGES.PUSH_SENDING, delivery.userId, delivery.notification.title);
   
   await new Promise(resolve => setTimeout(resolve, 500));
   await markDeliveryAsSent(delivery.id);
 };
 
+/**
+ * Mark delivery as sent
+ */
 const markDeliveryAsSent = async (deliveryId: number) => {
   try {
     await prisma.notificationDelivery.update({
@@ -121,13 +140,16 @@ const markDeliveryAsSent = async (deliveryId: number) => {
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2025') {
-        console.error(`Delivery with ID ${deliveryId} not found`);
+        console.error(LOG_MESSAGES.DELIVERY_NOT_FOUND, deliveryId);
       }
     }
     throw error;
   }
 };
 
+/**
+ * Mark delivery as failed
+ */
 const markDeliveryAsFailed = async (deliveryId: number, reason: string) => {
   try {
     await prisma.notificationDelivery.update({
@@ -140,13 +162,16 @@ const markDeliveryAsFailed = async (deliveryId: number, reason: string) => {
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2025') {
-        console.error(`Delivery with ID ${deliveryId} not found`);
+        console.error(LOG_MESSAGES.DELIVERY_NOT_FOUND, deliveryId);
       }
     }
-    console.error(`Failed to update delivery status ${deliveryId}:`, error);
+    console.error(LOG_MESSAGES.FAILURE_UPDATE, deliveryId, error);
   }
 };
 
+/**
+ * Send event notification to multiple users
+ */
 export const sendEventNotification = async (
   eventId: number,
   title: string,
@@ -154,13 +179,12 @@ export const sendEventNotification = async (
   userIds: number[]
 ) => {
   try {
-    // get notification type "EVENT" 
     const notificationType = await prisma.notificationType.findFirst({
       where: { name: 'EVENT' }
     });
     
     if (!notificationType) {
-      throw new Error('Notification type EVENT not found');
+      throw new Error(LOG_MESSAGES.TYPE_NOT_FOUND.replace('%s', 'EVENT'));
     }
     
     const notification = await prisma.notification.create({
@@ -174,12 +198,9 @@ export const sendEventNotification = async (
       }
     });
     
-    // get all notification channels
     const channels = await prisma.notificationChannel.findMany();
     
-    // create delivery records for each user
     for (const userId of userIds) {
-      // check user preferences
       const userPreferences = await prisma.userNotificationPreference.findMany({
         where: {
           userId,
@@ -191,12 +212,10 @@ export const sendEventNotification = async (
         }
       });
       
-      // if user has no preferences or all are disabled, skip
       if (userPreferences.length === 0) {
         continue;
       }
       
-      // create delivery records for each channel
       for (const pref of userPreferences) {
         await prisma.notificationDelivery.create({
           data: {
@@ -209,36 +228,36 @@ export const sendEventNotification = async (
       }
     }
     
-    // run deliveries processing
     return processNotificationDeliveries();
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error(`Prisma error sending event notification: ${error.code}`, error);
+      console.error(LOG_MESSAGES.PRISMA_ERROR, 'event', error.code, error);
     } else if (error instanceof Error) {
-      console.error('Error sending event notification:', error.message);
+      console.error(LOG_MESSAGES.ERROR_EVENT, error.message);
     } else {
-      console.error('Unknown error sending event notification');
+      console.error(LOG_MESSAGES.ERROR_EVENT);
     }
     throw error;
   }
 };
 
+/**
+ * Send achievement notification to a user
+ */
 export const sendAchievementNotification = async (
   userId: number,
   achievementId: number,
   achievementName: string
 ) => {
   try {
-    // get notification type "ACHIEVEMENT"
     const notificationType = await prisma.notificationType.findFirst({
       where: { name: 'ACHIEVEMENT' }
     });
     
     if (!notificationType) {
-      throw new Error('Notification type ACHIEVEMENT not found');
+      throw new Error(LOG_MESSAGES.TYPE_NOT_FOUND.replace('%s', 'ACHIEVEMENT'));
     }
     
-    // create notification
     const notification = await prisma.notification.create({
       data: {
         title: 'New achievement!',
@@ -250,7 +269,6 @@ export const sendAchievementNotification = async (
       }
     });
     
-    // check user preferences
     const userPreferences = await prisma.userNotificationPreference.findMany({
       where: {
         userId,
@@ -262,14 +280,12 @@ export const sendAchievementNotification = async (
       }
     });
     
-    // if user has no preferences, get all channels
     const channels = userPreferences.length > 0
       ? userPreferences
       : await prisma.notificationChannel.findMany().then(channels => 
           channels.map(channel => ({ notificationChannelId: channel.id }))
         );
     
-    // create delivery records for each channel
     for (const pref of channels) {
       await prisma.notificationDelivery.create({
         data: {
@@ -280,15 +296,15 @@ export const sendAchievementNotification = async (
         }
       });
     }
-    // run deliveries processing
+    
     return processNotificationDeliveries();
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      console.error(`Prisma error sending achievement notification: ${error.code}`, error);
+      console.error(LOG_MESSAGES.PRISMA_ERROR, 'achievement', error.code, error);
     } else if (error instanceof Error) {
-      console.error('Error sending achievement notification:', error.message);
+      console.error(LOG_MESSAGES.ERROR_ACHIEVEMENT, error.message);
     } else {
-      console.error('Unknown error sending achievement notification');
+      console.error(LOG_MESSAGES.ERROR_ACHIEVEMENT);
     }
     throw error;
   }
