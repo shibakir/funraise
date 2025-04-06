@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 import { prisma } from '../index';
+import bcrypt from 'bcrypt';
+
+const SALT_ROUNDS = process.env.SALT_ROUNDS || 12;
 
 export const createUser = async (req: Request, res: Response) => {
   try {
@@ -17,11 +20,13 @@ export const createUser = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'A user with the given email already exists' });
     }
 
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
     const user = await prisma.user.create({
       data: {
         email,
         name,
-        password, // TODO: need hash
+        password: hashedPassword,
       }
     });
 
@@ -97,12 +102,17 @@ export const updateUser = async (req: Request, res: Response) => {
       }
     }
 
+    let hashedPassword;
+    if (password) {
+      hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: Number(id) },
       data: {
         ...(email && { email }),
         ...(name !== undefined && { name }),
-        ...(password && { password }), // TODO: need hash
+        ...(password && { password: hashedPassword }),
       },
       select: {
         id: true,
