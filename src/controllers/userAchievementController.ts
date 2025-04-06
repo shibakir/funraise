@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { prisma } from '../index';
 
-// Implement Prisma interfaces
+// implement Criterion db interface
 interface Criterion {
   id: number;
   achievementId: number;

@@ -15,6 +15,11 @@ import {
     //checkAndUpdateProgressByType
 } from '../controllers/userAchievementController';
 
+import {
+    getUserNotifications,
+    markAllNotificationsAsRead
+} from '../controllers/notificationController';
+
 const router = express.Router();
 
 // USER ROUTES
@@ -30,5 +35,9 @@ router.get('/:id/achievements/:achievementId', getUserAchievementById);
 router.post('/:id/achievements', initUserAchievement);
 router.patch('/:id/progress/:progressId', updateCriterionProgress);
 //router.post('/:id/achievements/check-progress', checkAndUpdateProgressByType);
+
+// USER NOTIFICATIONS ROUTES
+router.get('/:id/notifications', getUserNotifications);
+router.patch('/:id/notifications/read-all', markAllNotificationsAsRead);
 
 export default router; 

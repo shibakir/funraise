@@ -20,6 +20,8 @@ model User {
   events           Event[]
   participations   Participation[]
   userAchievements UserAchievement[]
+  notificationPreferences UserNotificationPreference[]
+  notificationDeliveries NotificationDelivery[]
 }
 
 model Account {
@@ -126,4 +128,68 @@ model UserCriterionProgress {
   criterion         AchievementCriterion @relation(fields: [criterionId], references: [id])
 
   @@unique([userAchievementId, criterionId])
+}
+
+model NotificationType {
+  id               Int                @id @default(autoincrement())
+  name             String             @unique // EVENT, COMMENT, ACHIEVEMENT, ...
+  description      String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  userPreferences  UserNotificationPreference[]
+  notifications    Notification[]
+}
+
+model NotificationChannel {
+  id               Int                @id @default(autoincrement())
+  name             String             @unique // EMAIL, IN_APP, PUSH, ...
+  description      String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  userPreferences  UserNotificationPreference[]
+  deliveries       NotificationDelivery[]
+}
+
+model UserNotificationPreference {
+  id                 Int               @id @default(autoincrement())
+  userId             Int
+  notificationTypeId Int
+  notificationChannelId Int
+  isEnabled          Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notificationType   NotificationType  @relation(fields: [notificationTypeId], references: [id], onDelete: Cascade)
+  notificationChannel NotificationChannel @relation(fields: [notificationChannelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, notificationTypeId, notificationChannelId])
+}
+
+model Notification {
+  id                Int                 @id @default(autoincrement())
+  title             String
+  content           String
+  notificationTypeId Int
+  referenceId       String?             // ID of related src: event, comment, ...
+  referenceType     String?             // type of related src
+  isRead            Boolean             @default(false)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  notificationType  NotificationType    @relation(fields: [notificationTypeId], references: [id])
+  deliveries        NotificationDelivery[]
+}
+
+model NotificationDelivery {
+  id                Int                 @id @default(autoincrement())
+  notificationId    Int
+  notificationChannelId Int
+  userId            Int
+  status            String              // PENDING, SENT, FAILED, ...
+  sentAt            DateTime?
+  failureReason     String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  notification      Notification        @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  notificationChannel NotificationChannel @relation(fields: [notificationChannelId], references: [id], onDelete: Cascade)
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

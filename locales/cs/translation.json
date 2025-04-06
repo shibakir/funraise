@@ -44,5 +44,70 @@
     "getAll": {
       "error": "Nepodařilo se získat seznam uživatelů"
     }
+  },
+  "errors": {
+    "user": {
+      "notFound": "Uživatel nebyl nalezen"
+    },
+    "notificationType": {
+      "notFound": "Typ oznámení nebyl nalezen",
+      "nameRequired": "Název typu oznámení je povinný",
+      "nameExists": "Typ oznámení s tímto názvem již existuje",
+      "fetch": "Chyba při získávání typů oznámení",
+      "fetchById": "Chyba při získávání typu oznámení",
+      "create": "Chyba při vytváření typu oznámení",
+      "update": "Chyba při aktualizaci typu oznámení",
+      "delete": "Chyba při mazání typu oznámení"
+    },
+    "notificationChannel": {
+      "notFound": "Kanál oznámení nebyl nalezen",
+      "nameRequired": "Název kanálu oznámení je povinný",
+      "nameExists": "Kanál oznámení s tímto názvem již existuje",
+      "fetch": "Chyba při získávání kanálů oznámení",
+      "fetchById": "Chyba při získávání kanálu oznámení",
+      "create": "Chyba při vytváření kanálu oznámení",
+      "update": "Chyba při aktualizaci kanálu oznámení",
+      "delete": "Chyba při mazání kanálu oznámení"
+    },
+    "preference": {
+      "notFound": "Nastavení oznámení nebylo nalezeno",
+      "requiredFields": "ID typu oznámení a kanálu oznámení jsou povinné",
+      "fetch": "Chyba při získávání nastavení oznámení uživatele",
+      "fetchStatus": "Chyba při získávání stavu nastavení oznámení",
+      "update": "Chyba při nastavení oznámení",
+      "delete": "Chyba při mazání nastavení oznámení",
+      "initialize": "Chyba při inicializaci nastavení oznámení uživatele"
+    },
+    "notification": {
+      "notFound": "Oznámení nebylo nalezeno",
+      "requiredFields": "Všechna povinná pole musí být vyplněna (titulek, obsah, typ oznámení, ID uživatelů)",
+      "fetch": "Chyba při získávání oznámení uživatele",
+      "fetchById": "Chyba při získávání oznámení",
+      "create": "Chyba při vytváření oznámení",
+      "update": "Chyba při aktualizaci stavu oznámení",
+      "markRead": "Chyba při označování oznámení jako přečtené",
+      "markAllRead": "Chyba při označování všech oznámení jako přečtené",
+      "delivery": {
+        "notFound": "Doručení oznámení nebylo nalezeno",
+        "statusRequired": "Stav doručení je povinný",
+        "update": "Chyba při aktualizaci stavu doručení"
+      }
+    }
+  },
+  "success": {
+    "notificationType": {
+      "deleted": "Typ oznámení byl úspěšně odstraněn"
+    },
+    "notificationChannel": {
+      "deleted": "Kanál oznámení byl úspěšně odstraněn"
+    },
+    "preference": {
+      "deleted": "Nastavení oznámení bylo úspěšně odstraněno",
+      "initialized": "Nastavení oznámení uživatele byla úspěšně inicializována"
+    },
+    "notification": {
+      "created": "Oznámení bylo úspěšně vytvořeno",
+      "markAllRead": "Všechna oznámení byla označena jako přečtená"
+    }
   }
 } 

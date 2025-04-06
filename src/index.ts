@@ -12,6 +12,7 @@ import eventRoutes from './routes/eventRoutes';
 import participationRoutes from './routes/participationRoutes';
 import achievementRoutes from './routes/achievementRoutes';
 import authRoutes from './routes/authRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 
 // config
 dotenv.config();
@@ -45,6 +46,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/participations', participationRoutes);
 app.use('/api/achievements', achievementRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // errors
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
