@@ -5,14 +5,16 @@ import jwt from 'jsonwebtoken';
 
 // JWT secret key
 const JWT_SECRET = process.env.JWT_SECRET || 'this-secret-key-is-not-secure-at-all-do-not-use-it-in-production';
-const SALT_ROUNDS = process.env.SALT_ROUNDS || 12;
+const SALT_ROUNDS = Number(process.env.SALT_ROUNDS) || 10;
 
 export const login = async (req: Request, res: Response) => {
+  const t = req.t; // translation function
+
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are both required' });
+      return res.status(400).json({ message: t('auth.login.fieldsRequired') });
     }
 
     const user = await prisma.user.findUnique({
@@ -20,22 +22,23 @@ export const login = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: t('auth.login.invalidCredentials') });
     }
 
     if (!user.password) {
-      return res.status(401).json({ message: 'This account uses another authentication method' });
+      return res.status(401).json({ message: t('auth.login.otherAuthMethod') });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: t('auth.login.invalidCredentials') });
     }
 
+    // Создание JWT токена
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: '7d' }
     );
 
     // send token to client
@@ -46,19 +49,22 @@ export const login = async (req: Request, res: Response) => {
         name: user.name,
       },
       token,
+      message: t('auth.login.success')
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: t('auth.login.error') });
   }
 };
 
 export const register = async (req: Request, res: Response) => {
+  const t = req.t; // translation function
+
   try {
     const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Username, email and password are required' });
+      return res.status(400).json({ message: t('auth.register.fieldsRequired') });
     }
 
     const existingUser = await prisma.user.findUnique({
@@ -66,7 +72,7 @@ export const register = async (req: Request, res: Response) => {
     });
 
     if (existingUser) {
-      return res.status(400).json({ message: 'This email is already registered' });
+      return res.status(400).json({ message: t('auth.register.userExists') });
     }
 
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
@@ -82,7 +88,7 @@ export const register = async (req: Request, res: Response) => {
     const token = jwt.sign(
       { userId: newUser.id, email: newUser.email },
       JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: '7d' }
     );
 
     // send token to client
@@ -93,9 +99,10 @@ export const register = async (req: Request, res: Response) => {
         name: newUser.name,
       },
       token,
+      message: t('auth.register.success')
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    res.status(500).json({ message: t('auth.register.error') });
   }
 }; 

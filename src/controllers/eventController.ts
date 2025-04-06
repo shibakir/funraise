@@ -97,7 +97,6 @@ export const updateEvent = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { name, description, bankAmount, status } = req.body;
 
-    // Проверка существования события
     const existingEvent = await prisma.event.findUnique({
       where: { id: Number(id) }
     });
