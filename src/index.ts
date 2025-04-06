@@ -5,6 +5,11 @@ import { PrismaClient } from '@prisma/client';
 
 // routes
 import userRoutes from './routes/userRoutes';
+import transactionRoutes from './routes/transactionRoutes';
+import eventRoutes from './routes/eventRoutes';
+import participationRoutes from './routes/participationRoutes';
+import achievementRoutes from './routes/achievementRoutes';
+import authRoutes from './routes/authRoutes';
 
 // config
 dotenv.config();
@@ -31,7 +36,12 @@ app.use(cors());
 app.use(express.json());
 
 // routes
+app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/transactions', transactionRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/participations', participationRoutes);
+app.use('/api/achievements', achievementRoutes);
 
 // errors
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

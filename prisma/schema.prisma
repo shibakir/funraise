@@ -8,10 +8,122 @@ datasource db {
 }
 
 model User {
+  id               Int               @id @default(autoincrement())
+  email            String            @unique
+  name             String?
+  password         String? // unneccessary for OAuth users
+  image            String? // URL
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  accounts         Account[] // OAuths
+  transactions     Transaction[]
+  events           Event[]
+  participations   Participation[]
+  userAchievements UserAchievement[]
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            Int
+  type              String // oauth, email, ...
+  provider          String // google, apple, ...
+  providerAccountId String // user ID
+  refresh_token     String? // update token
+  access_token      String? // access token
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  //id_token          String?
+  session_state     String? // Session state (used by some providers)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Transaction {
   id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String?
-  password  String
+  amount    Float
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Event {
+  id             Int             @id @default(autoincrement())
+  name           String
+  description    String?
+  bankAmount     Float           @default(0)
+  status         String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  userId         Int
+  user           User            @relation(fields: [userId], references: [id])
+  participations Participation[]
+}
+
+model Participation {
+  id        Int      @id @default(autoincrement())
+  deposit   Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  eventId   Int
+  event     Event    @relation(fields: [eventId], references: [id])
+}
+
+model Achievement {
+  id               Int                    @id @default(autoincrement())
+  name             String
+  description      String?
+  iconUrl          String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  userAchievements UserAchievement[]
+  criteria         AchievementCriterion[]
+}
+
+model AchievementCriterion {
+  id            Int                     @id @default(autoincrement())
+  achievementId Int
+  criteriaType  String // PARTICIPATION_COUNT, TOTAL_DEPOSIT, ...
+  criteriaValue Int
+  description   String?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  achievement   Achievement             @relation(fields: [achievementId], references: [id])
+  userProgress  UserCriterionProgress[]
+}
+
+model UserAchievement {
+  id            Int                     @id @default(autoincrement())
+  userId        Int
+  achievementId Int
+  status        String // LOCKED, IN_PROGRESS, COMPLETED
+  unlockedAt    DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  user          User                    @relation(fields: [userId], references: [id])
+  achievement   Achievement             @relation(fields: [achievementId], references: [id])
+  progress      UserCriterionProgress[]
+
+  @@unique([userId, achievementId])
+}
+
+model UserCriterionProgress {
+  id                Int                  @id @default(autoincrement())
+  userAchievementId Int
+  criterionId       Int
+  currentValue      Int                  @default(0)
+  isCompleted       Boolean              @default(false)
+  completedAt       DateTime? // after completion
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  userAchievement   UserAchievement      @relation(fields: [userAchievementId], references: [id])
+  criterion         AchievementCriterion @relation(fields: [criterionId], references: [id])
+
+  @@unique([userAchievementId, criterionId])
 }
