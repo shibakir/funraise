@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import middleware from 'i18next-http-middleware';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpecs from './config/swagger';
 import './config/i18n';
 
 // routes
@@ -40,6 +42,9 @@ testDatabaseConnection();
 app.use(cors());
 app.use(express.json());
 app.use(middleware.handle);
+
+// Swagger документация
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 // routes
 app.use('/api/auth', authRoutes);
