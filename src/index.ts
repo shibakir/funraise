@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import middleware from 'i18next-http-middleware';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpecs from './config/swagger';
 import './config/i18n';
 
 // routes
@@ -13,6 +15,8 @@ import participationRoutes from './routes/participationRoutes';
 import achievementRoutes from './routes/achievementRoutes';
 import authRoutes from './routes/authRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import eventEndConditionRoutes from './routes/eventEndConditionRoutes';
+import endConditionRoutes from './routes/endConditionRoutes';
 
 // config
 dotenv.config();
@@ -39,6 +43,9 @@ app.use(cors());
 app.use(express.json());
 app.use(middleware.handle);
 
+// swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
+
 // routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -47,6 +54,8 @@ app.use('/api/events', eventRoutes);
 app.use('/api/participations', participationRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/event-end-conditions', eventEndConditionRoutes);
+app.use('/api/end-conditions', endConditionRoutes);
 
 // errors
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

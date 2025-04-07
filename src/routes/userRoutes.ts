@@ -1,4 +1,5 @@
 import express from 'express';
+import { auth } from '../middleware/authMiddleware';
 
 import {
     createUser,
@@ -40,12 +41,11 @@ import {
 
 const router = express.Router();
 
-// USER ROUTES
 router.post('/', createUser);
-router.get('/', getAllUsers);
-router.get('/:id', getUserById);
-router.patch('/:id', updateUser);
-router.delete('/:id', deleteUser);
+router.get('/', auth, getAllUsers);
+router.get('/:id', auth, getUserById);
+router.patch('/:id', auth, updateUser);
+router.delete('/:id', auth, deleteUser);
 
 // USER ACHIEVEMENTS ROUTES
 router.get('/:id/achievements', getUserAchievements);

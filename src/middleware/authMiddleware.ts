@@ -7,42 +7,62 @@ declare global {
   namespace Express {
     interface Request {
       user?: {
-        userId: number;
+        id: number;
         email: string;
+        name?: string | null;
       };
     }
   }
 }
 
 // JWT secret key
-const JWT_SECRET = process.env.JWT_SECRET || 'this-jwt-secret-is-not-secure-at-all-do-not-use-it-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'this-secret-key-is-not-secure-at-all-do-not-use-it-in-production';
 
-export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
+interface JwtPayload {
+  userId: number;
+  email: string;
+}
+
+/**
+ * Middleware for checking authentication.
+ * Checks for the presence and validity of a JWT token in the Authorization header.
+ */
+export const auth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // Get token from the Authorization header
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
-    if (!token) {
-      return res.status(401).json({ message: req.t('auth.middleware.authRequired') });
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: req.t('auth.middleware.tokenRequired') });
     }
 
-    // Check token
-    jwt.verify(token, JWT_SECRET, (err: any, decoded: any) => {
-      if (err) {
-        return res.status(403).json({ message: req.t('auth.middleware.invalidToken') });
-      }
+    const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ message: req.t('auth.middleware.tokenRequired') });
+    }
 
-      // Add user data to the request object
-      req.user = {
-        userId: decoded.userId,
-        email: decoded.email
-      };
-      
-      next();
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    
+    // check if the user exists
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+      }
     });
+
+    if (!user) {
+      return res.status(401).json({ message: req.t('auth.middleware.userNotFound') });
+    }
+
+    // add user information to the request object
+    req.user = user;
+    
+    next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
-    res.status(500).json({ message: req.t('auth.middleware.serverError') });
+    console.error('Authentication error:', error);
+    return res.status(401).json({ message: req.t('auth.middleware.invalidToken') });
   }
 }; 
