@@ -3,10 +3,20 @@ import { prisma } from '../index';
 
 export const createEvent = async (req: Request, res: Response) => {
   try {
-    const { userId, name, description, status } = req.body;
+    const { userId, name, description, status, endConditions } = req.body;
 
     if (!userId || !name || !status) {
       return res.status(400).json({ error: req.t('event.create.fieldsRequired') });
+    }
+
+    if (!endConditions || !Array.isArray(endConditions) || endConditions.length === 0) {
+      return res.status(400).json({ error: req.t('event.create.endConditionsRequired') });
+    }
+
+    for (const condition of endConditions) {
+      if (!condition.conditions || !Array.isArray(condition.conditions) || condition.conditions.length === 0) {
+        return res.status(400).json({ error: req.t('event.create.subConditionsRequired') });
+      }
     }
 
     const user = await prisma.user.findUnique({
@@ -23,7 +33,27 @@ export const createEvent = async (req: Request, res: Response) => {
         description: description || null,
         bankAmount: 0, // default value
         status,
-        userId: Number(userId)
+        userId: Number(userId),
+        endConditionGroups: {
+          create: endConditions.map(condition => ({
+            isCompleted: false,
+            conditions: {
+              create: condition.conditions.map((subCondition: any) => ({
+                parameterName: subCondition.parameterName,
+                operator: subCondition.operator,
+                value: subCondition.value,
+                isCompleted: false
+              }))
+            }
+          }))
+        }
+      },
+      include: {
+        endConditionGroups: {
+          include: {
+            conditions: true
+          }
+        }
       }
     });
 
@@ -41,7 +71,14 @@ export const getAllEvents = async (req: Request, res: Response) => {
   try {
     const events = await prisma.event.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { user: { select: { id: true, email: true, name: true } } }
+      include: { 
+        user: { select: { id: true, email: true, name: true } },
+        endConditionGroups: {
+          include: {
+            conditions: true
+          }
+        }
+      }
     });
     
     return res.json(events);
@@ -57,7 +94,14 @@ export const getEventById = async (req: Request, res: Response) => {
     
     const event = await prisma.event.findUnique({
       where: { id: Number(id) },
-      include: { user: { select: { id: true, email: true, name: true } } }
+      include: { 
+        user: { select: { id: true, email: true, name: true } },
+        endConditionGroups: {
+          include: {
+            conditions: true
+          }
+        }
+      }
     });
 
     if (!event) {
@@ -85,7 +129,14 @@ export const getUserEvents = async (req: Request, res: Response) => {
 
     const events = await prisma.event.findMany({
       where: { userId: Number(userId) },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      include: {
+        endConditionGroups: {
+          include: {
+            conditions: true
+          }
+        }
+      }
     });
 
     return res.json(events);
@@ -116,7 +167,14 @@ export const updateEvent = async (req: Request, res: Response) => {
         ...(bankAmount !== undefined && { bankAmount: Number(bankAmount) }),
         ...(status && { status })
       },
-      include: { user: { select: { id: true, email: true, name: true } } }
+      include: { 
+        user: { select: { id: true, email: true, name: true } },
+        endConditionGroups: {
+          include: {
+            conditions: true
+          }
+        }
+      }
     });
 
     return res.json({
