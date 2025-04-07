@@ -24,18 +24,8 @@ interface JwtPayload {
 }
 
 /**
- * @swagger
- * components:
- *   securitySchemes:
- *     bearerAuth:
- *       type: http
- *       scheme: bearer
- *       bearerFormat: JWT
- */
-
-/**
- * Middleware для проверки аутентификации.
- * Проверяет наличие и валидность JWT токена в заголовке Authorization.
+ * Middleware for checking authentication.
+ * Checks for the presence and validity of a JWT token in the Authorization header.
  */
 export const auth = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -53,7 +43,7 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
 
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
     
-    // Проверяем существование пользователя
+    // check if the user exists
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: {
@@ -67,7 +57,7 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
       return res.status(401).json({ message: req.t('auth.middleware.userNotFound') });
     }
 
-    // Добавляем информацию о пользователе в объект запроса
+    // add user information to the request object
     req.user = user;
     
     next();

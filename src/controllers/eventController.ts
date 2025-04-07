@@ -34,7 +34,7 @@ export const createEvent = async (req: Request, res: Response) => {
         bankAmount: 0, // default value
         status,
         userId: Number(userId),
-        endConditionGroups: {
+        endConditions: {
           create: endConditions.map(condition => ({
             isCompleted: false,
             conditions: {
@@ -49,7 +49,7 @@ export const createEvent = async (req: Request, res: Response) => {
         }
       },
       include: {
-        endConditionGroups: {
+        endConditions: {
           include: {
             conditions: true
           }
@@ -73,7 +73,7 @@ export const getAllEvents = async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' },
       include: { 
         user: { select: { id: true, email: true, name: true } },
-        endConditionGroups: {
+        endConditions: {
           include: {
             conditions: true
           }
@@ -96,7 +96,7 @@ export const getEventById = async (req: Request, res: Response) => {
       where: { id: Number(id) },
       include: { 
         user: { select: { id: true, email: true, name: true } },
-        endConditionGroups: {
+        endConditions: {
           include: {
             conditions: true
           }
@@ -131,7 +131,7 @@ export const getUserEvents = async (req: Request, res: Response) => {
       where: { userId: Number(userId) },
       orderBy: { createdAt: 'desc' },
       include: {
-        endConditionGroups: {
+        endConditions: {
           include: {
             conditions: true
           }
@@ -169,7 +169,7 @@ export const updateEvent = async (req: Request, res: Response) => {
       },
       include: { 
         user: { select: { id: true, email: true, name: true } },
-        endConditionGroups: {
+        endConditions: {
           include: {
             conditions: true
           }
