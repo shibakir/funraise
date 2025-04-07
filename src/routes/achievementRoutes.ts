@@ -20,8 +20,8 @@ router.patch('/:id', updateAchievement);
 router.delete('/:id', deleteAchievement);
 
 // controll achievement criterion
-router.post('/:id/criterion', addCriterionToAchievement);
-router.patch('/criterion/:id', updateCriterion);
-router.delete('/criterion/:id', deleteCriterion);
+router.post('/:id/criterions', addCriterionToAchievement);
+router.patch('/criterions/:id', updateCriterion);
+router.delete('/criterions/:id', deleteCriterion);
 
 export default router; 

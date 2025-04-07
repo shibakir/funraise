@@ -45,7 +45,6 @@ export const createAchievement = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Achievement name is required' });
     }
 
-    // Создаем достижение
     const achievement = await prisma.achievement.create({
       data: {
         name,

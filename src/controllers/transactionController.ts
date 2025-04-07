@@ -6,7 +6,7 @@ export const createTransaction = async (req: Request, res: Response) => {
     const { userId, amount } = req.body;
 
     if (!userId || amount === undefined) {
-      return res.status(400).json({ error: 'UserId and amount are required' });
+      return res.status(400).json({ error: req.t('transaction.create.fieldsRequired') });
     }
 
     const user = await prisma.user.findUnique({
@@ -14,7 +14,7 @@ export const createTransaction = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: req.t('transaction.create.userNotFound') });
     }
 
     const transaction = await prisma.transaction.create({
@@ -24,10 +24,13 @@ export const createTransaction = async (req: Request, res: Response) => {
       }
     });
 
-    return res.status(201).json(transaction);
+    return res.status(201).json({
+      ...transaction,
+      message: req.t('transaction.create.success')
+    });
   } catch (error) {
     console.error('Error creating transaction:', error);
-    return res.status(500).json({ error: 'Failed to create transaction' });
+    return res.status(500).json({ error: req.t('transaction.create.error') });
   }
 };
 
@@ -40,7 +43,7 @@ export const getUserTransactions = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: req.t('transaction.getUserTransactions.userNotFound') });
     }
 
     const transactions = await prisma.transaction.findMany({
@@ -51,7 +54,7 @@ export const getUserTransactions = async (req: Request, res: Response) => {
     return res.json(transactions);
   } catch (error) {
     console.error('Error fetching user transactions:', error);
-    return res.status(500).json({ error: 'Failed to fetch transactions' });
+    return res.status(500).json({ error: req.t('transaction.getUserTransactions.error') });
   }
 };
 
@@ -65,13 +68,13 @@ export const getTransactionById = async (req: Request, res: Response) => {
     });
 
     if (!transaction) {
-      return res.status(404).json({ error: 'Transaction not found' });
+      return res.status(404).json({ error: req.t('transaction.get.notFound') });
     }
 
     return res.json(transaction);
   } catch (error) {
     console.error('Error fetching transaction:', error);
-    return res.status(500).json({ error: 'Failed to fetch transaction' });
+    return res.status(500).json({ error: req.t('transaction.get.error') });
   }
 };
 
@@ -85,7 +88,7 @@ export const getAllTransactions = async (req: Request, res: Response) => {
     return res.json(transactions);
   } catch (error) {
     console.error('Error fetching transactions:', error);
-    return res.status(500).json({ error: 'Failed to fetch transactions' });
+    return res.status(500).json({ error: req.t('transaction.getAll.error') });
   }
 };
 
@@ -98,7 +101,7 @@ export const getUserBalance = async (req: Request, res: Response) => {
     });
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: req.t('transaction.getUserBalance.userNotFound') });
     }
 
     const result = await prisma.transaction.aggregate({
@@ -122,7 +125,7 @@ export const getUserBalance = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Error calculating user balance:', error);
-    return res.status(500).json({ error: 'Failed to calculate balance' });
+    return res.status(500).json({ error: req.t('transaction.getUserBalance.error') });
   }
 };
 
@@ -148,4 +151,4 @@ export const calculateUserBalance = async (userId: number) => {
     usedInParticipations: totalParticipations,
     availableBalance: availableBalance
   };
-}; 
+};

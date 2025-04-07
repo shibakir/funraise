@@ -44,5 +44,194 @@
     "getAll": {
       "error": "Nepodařilo se získat seznam uživatelů"
     }
+  },
+  "event": {
+    "create": {
+      "success": "Událost byla úspěšně vytvořena",
+      "error": "Nepodařilo se vytvořit událost",
+      "fieldsRequired": "ID uživatele, název a stav jsou povinné",
+      "userNotFound": "Uživatel nebyl nalezen"
+    },
+    "update": {
+      "success": "Událost byla úspěšně aktualizována",
+      "error": "Nepodařilo se aktualizovat událost",
+      "notFound": "Událost nebyla nalezena"
+    },
+    "delete": {
+      "success": "Událost byla úspěšně odstraněna",
+      "error": "Nepodařilo se odstranit událost",
+      "notFound": "Událost nebyla nalezena"
+    },
+    "get": {
+      "error": "Nepodařilo se získat událost",
+      "notFound": "Událost nebyla nalezena"
+    },
+    "getAll": {
+      "error": "Nepodařilo se získat seznam událostí"
+    },
+    "getUserEvents": {
+      "error": "Nepodařilo se získat události uživatele",
+      "userNotFound": "Uživatel nebyl nalezen"
+    }
+  },
+  "transaction": {
+    "create": {
+      "success": "Transakce byla úspěšně vytvořena",
+      "error": "Nepodařilo se vytvořit transakci",
+      "fieldsRequired": "ID uživatele a částka jsou povinné",
+      "userNotFound": "Uživatel nebyl nalezen"
+    },
+    "getUserTransactions": {
+      "error": "Nepodařilo se získat transakce uživatele",
+      "userNotFound": "Uživatel nebyl nalezen"
+    },
+    "get": {
+      "error": "Nepodařilo se získat transakci",
+      "notFound": "Transakce nebyla nalezena"
+    },
+    "getAll": {
+      "error": "Nepodařilo se získat seznam transakcí"
+    },
+    "getUserBalance": {
+      "error": "Nepodařilo se vypočítat zůstatek uživatele",
+      "userNotFound": "Uživatel nebyl nalezen"
+    }
+  },
+  "participation": {
+    "create": {
+      "success": "Účast byla úspěšně vytvořena",
+      "error": "Nepodařilo se vytvořit účast",
+      "fieldsRequired": "ID uživatele, ID události a vklad jsou povinné",
+      "userNotFound": "Uživatel nebyl nalezen",
+      "eventNotFound": "Událost nebyla nalezena",
+      "insufficientFunds": "Nedostatek prostředků"
+    },
+    "getUserParticipations": {
+      "error": "Nepodařilo se získat účasti uživatele",
+      "userNotFound": "Uživatel nebyl nalezen"
+    },
+    "getEventParticipations": {
+      "error": "Nepodařilo se získat účastníky události",
+      "eventNotFound": "Událost nebyla nalezena"
+    },
+    "get": {
+      "error": "Nepodařilo se získat informace o účasti",
+      "notFound": "Účast nebyla nalezena"
+    },
+    "delete": {
+      "error": "Nepodařilo se odstranit účast",
+      "notFound": "Účast nebyla nalezena",
+      "success": "Účast byla úspěšně odstraněna"
+    },
+    "increaseDeposit": {
+      "error": "Nepodařilo se zvýšit vklad",
+      "notFound": "Účast nebyla nalezena",
+      "amountRequired": "Je nutné zadat částku pro zvýšení",
+      "insufficientFunds": "Nedostatek prostředků",
+      "success": "Vklad byl úspěšně zvýšen"
+    }
+  },
+  "notificationType": {
+    "getAll": {
+      "error": "Chyba při získávání typů oznámení"
+    },
+    "get": {
+      "notFound": "Typ oznámení nebyl nalezen",
+      "error": "Chyba při získávání typu oznámení"
+    },
+    "create": {
+      "nameRequired": "Název typu oznámení je povinný",
+      "nameExists": "Typ oznámení s tímto názvem již existuje",
+      "error": "Chyba při vytváření typu oznámení"
+    },
+    "update": {
+      "nameRequired": "Název typu oznámení je povinný",
+      "notFound": "Typ oznámení nebyl nalezen",
+      "nameExists": "Typ oznámení s tímto názvem již existuje",
+      "error": "Chyba při aktualizaci typu oznámení"
+    },
+    "delete": {
+      "success": "Typ oznámení byl úspěšně odstraněn",
+      "notFound": "Typ oznámení nebyl nalezen",
+      "error": "Chyba při mazání typu oznámení"
+    }
+  },
+  "notificationChannel": {
+    "getAll": {
+      "error": "Chyba při získávání kanálů oznámení"
+    },
+    "get": {
+      "notFound": "Kanál oznámení nebyl nalezen",
+      "error": "Chyba při získávání kanálu oznámení"
+    },
+    "create": {
+      "nameRequired": "Název kanálu oznámení je povinný",
+      "nameExists": "Kanál oznámení s tímto názvem již existuje",
+      "error": "Chyba při vytváření kanálu oznámení"
+    },
+    "update": {
+      "nameRequired": "Název kanálu oznámení je povinný",
+      "notFound": "Kanál oznámení nebyl nalezen",
+      "nameExists": "Kanál oznámení s tímto názvem již existuje",
+      "error": "Chyba při aktualizaci kanálu oznámení"
+    },
+    "delete": {
+      "success": "Kanál oznámení byl úspěšně odstraněn",
+      "notFound": "Kanál oznámení nebyl nalezen",
+      "error": "Chyba při mazání kanálu oznámení"
+    }
+  },
+  "preference": {
+    "getAll": {
+      "error": "Chyba při získávání nastavení oznámení uživatele"
+    },
+    "get": {
+      "notFound": "Nastavení oznámení nebylo nalezeno"
+    },
+    "set": {
+      "fieldsRequired": "ID typu oznámení a kanálu oznámení jsou povinné",
+      "error": "Chyba při nastavení oznámení"
+    },
+    "getStatus": {
+      "error": "Chyba při získávání stavu nastavení oznámení"
+    },
+    "delete": {
+      "success": "Nastavení oznámení bylo úspěšně odstraněno",
+      "error": "Chyba při mazání nastavení oznámení"
+    },
+    "init": {
+      "success": "Nastavení oznámení uživatele byla úspěšně inicializována",
+      "error": "Chyba při inicializaci nastavení oznámení uživatele"
+    }
+  },
+  "notification": {
+    "getAll": {
+      "error": "Chyba při získávání oznámení uživatele"
+    },
+    "get": {
+      "notFound": "Oznámení nebylo nalezeno",
+      "error": "Chyba při získávání oznámení"
+    },
+    "create": {
+      "fieldsRequired": "Všechna povinná pole musí být vyplněna (titulek, obsah, typ oznámení, ID uživatelů)",
+      "success": "Oznámení bylo úspěšně vytvořeno",
+      "error": "Chyba při vytváření oznámení"
+    },
+    "markRead": {
+      "error": "Chyba při označování oznámení jako přečtené"
+    },
+    "markAllRead": {
+      "success": "Všechna oznámení byla označena jako přečtená",
+      "error": "Chyba při označování všech oznámení jako přečtené"
+    },
+    "delivery": {
+      "get": {
+        "notFound": "Doručení oznámení nebylo nalezeno"
+      },
+      "update": {
+        "statusRequired": "Stav doručení je povinný",
+        "error": "Chyba při aktualizaci stavu doručení"
+      }
+    }
   }
 } 
