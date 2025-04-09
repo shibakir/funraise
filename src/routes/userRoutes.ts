@@ -47,6 +47,7 @@ router.get('/:id', auth, getUserById);
 router.patch('/:id', auth, updateUser);
 router.delete('/:id', auth, deleteUser);
 
+/*
 // USER ACHIEVEMENTS ROUTES
 router.get('/:id/achievements', getUserAchievements);
 router.get('/:id/achievements/:achievementId', getUserAchievementById);
@@ -71,5 +72,5 @@ router.get('/:userId/balance', getUserBalance); // ? TODO
 
 // USER EVENTS ROUTES
 router.get('/:userId/events', getUserEvents);
-
+ */
 export default router; 

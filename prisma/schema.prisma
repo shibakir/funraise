@@ -12,19 +12,20 @@ datasource db {
 }
 
 model User {
-  id               Int               @id @default(autoincrement())
-  email            String            @unique
-  name             String?
-  password         String? // unneccessary for OAuth users
-  image            String? // URL
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  accounts         Account[] // OAuths
-  transactions     Transaction[]
-  events           Event[]
-  participations   Participation[]
-  userAchievements UserAchievement[]
+  id                      Int                          @id @default(autoincrement())
+  email                   String                       @unique
+  name                    String?
+  password                String? // unneccessary for OAuth users
+  image                   String? // URL
+  createdAt               DateTime                     @default(now())
+  updatedAt               DateTime                     @updatedAt
+  accounts                Account[] // OAuths
+  transactions            Transaction[]
+  events                  Event[]
+  participations          Participation[]
+  userAchievements        UserAchievement[]
   notificationPreferences UserNotificationPreference[]
+  notificationDeliveries  NotificationDelivery[]
 }
 
 model Account {
@@ -56,17 +57,17 @@ model Transaction {
 }
 
 model Event {
-  id                 Int                  @id @default(autoincrement())
-  name               String
-  description        String?
-  bankAmount         Float                @default(0)
-  status             String
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
-  userId             Int
-  user               User                 @relation(fields: [userId], references: [id])
-  participations     Participation[]
-  endConditions      EventEndCondition[]
+  id             Int                 @id @default(autoincrement())
+  name           String
+  description    String?
+  bankAmount     Float               @default(0)
+  status         String
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  userId         Int
+  user           User                @relation(fields: [userId], references: [id])
+  participations Participation[]
+  endConditions  EventEndCondition[]
 }
 
 model Participation {
@@ -198,23 +199,23 @@ model NotificationDelivery {
 }
 
 model EventEndCondition {
-  id             Int            @id @default(autoincrement())
-  eventId        Int
-  isCompleted    Boolean        @default(false)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  event          Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  conditions     EndCondition[]
+  id          Int            @id @default(autoincrement())
+  eventId     Int
+  isCompleted Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  event       Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  conditions  EndCondition[]
 }
 
 model EndCondition {
-  id                  Int               @id @default(autoincrement())
-  endConditionId      Int
-  parameterName       String
-  operator            String
-  value               String
-  isCompleted         Boolean           @default(false)
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-  eventEndCondition   EventEndCondition @relation(fields: [endConditionId], references: [id], onDelete: Cascade)
+  id                Int               @id @default(autoincrement())
+  endConditionId    Int
+  parameterName     String
+  operator          String
+  value             String
+  isCompleted       Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  eventEndCondition EventEndCondition @relation(fields: [endConditionId], references: [id], onDelete: Cascade)
 }

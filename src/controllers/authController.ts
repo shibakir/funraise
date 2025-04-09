@@ -13,13 +13,19 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
+    console.log('login123', email, password);
+
     if (!email || !password) {
       return res.status(400).json({ message: t('auth.login.fieldsRequired') });
     }
 
+    console.log('login456');
+
     const user = await prisma.user.findUnique({
       where: { email },
     });
+
+    console.log('login789', user);
 
     if (!user) {
       return res.status(401).json({ message: t('auth.login.invalidCredentials') });
@@ -29,12 +35,16 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: t('auth.login.otherAuthMethod') });
     }
 
+    console.log('login1011', user);
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: t('auth.login.invalidCredentials') });
     }
 
-    // Создание JWT токена
+    console.log('login1213', isPasswordValid);
+
+    // create JWT token
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       JWT_SECRET,
