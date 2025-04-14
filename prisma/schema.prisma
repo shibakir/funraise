@@ -2,16 +2,158 @@ generator client {
   provider = "prisma-client-js"
 }
 
+generator dbml {
+  provider = "prisma-dbml-generator"
+}
+
 datasource db {
   provider = "sqlite"
   url      = "file:./dev.db"
 }
 
 model User {
+  id               Int               @id @default(autoincrement())
+  email            String            @unique
+  username         String            @unique
+  password         String? // unneccessary for OAuth users
+  image            String? // URL
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  accounts         Account[] // OAuths
+  transactions     Transaction[]
+  createdEvents    Event[]           @relation("EventCreator")
+  receivedEvents   Event[]           @relation("EventRecipient")
+  participations   Participation[]
+  userAchievements UserAchievement[]
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Transaction {
   id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String?
-  password  String
+  amount    Float
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Event {
+  id             Int                 @id @default(autoincrement())
+  name           String
+  description    String?
+  bankAmount     Float               @default(0)
+  status         String
+  type           String // DONATION or FUNDRAISING or JACKPOT
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  userId         Int // создатель ивента
+  recipientId    Int? // получатель средств для DONATION и FUNDRAISING
+  user           User                @relation("EventCreator", fields: [userId], references: [id])
+  recipient      User?               @relation("EventRecipient", fields: [recipientId], references: [id])
+  participations Participation[]
+  endConditions  EventEndCondition[]
+}
+
+model Participation {
+  id        Int      @id @default(autoincrement())
+  deposit   Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    Int
+  eventId   Int
+  event     Event    @relation(fields: [eventId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Achievement {
+  id               Int                    @id @default(autoincrement())
+  name             String
+  description      String?
+  iconUrl          String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  criteria         AchievementCriterion[]
+  userAchievements UserAchievement[]
+}
+
+model AchievementCriterion {
+  id            Int                     @id @default(autoincrement())
+  achievementId Int
+  criteriaType  String
+  criteriaValue Int
+  description   String?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  achievement   Achievement             @relation(fields: [achievementId], references: [id])
+  userProgress  UserCriterionProgress[]
+}
+
+model UserAchievement {
+  id            Int                     @id @default(autoincrement())
+  userId        Int
+  achievementId Int
+  status        String
+  unlockedAt    DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  achievement   Achievement             @relation(fields: [achievementId], references: [id])
+  user          User                    @relation(fields: [userId], references: [id])
+  progress      UserCriterionProgress[]
+
+  @@unique([userId, achievementId])
+}
+
+model UserCriterionProgress {
+  id                Int                  @id @default(autoincrement())
+  userAchievementId Int
+  criterionId       Int
+  currentValue      Int                  @default(0)
+  isCompleted       Boolean              @default(false)
+  completedAt       DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  criterion         AchievementCriterion @relation(fields: [criterionId], references: [id])
+  userAchievement   UserAchievement      @relation(fields: [userAchievementId], references: [id])
+
+  @@unique([userAchievementId, criterionId])
+}
+
+model EventEndCondition {
+  id          Int            @id @default(autoincrement())
+  eventId     Int
+  isCompleted Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  event       Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  conditions  EndCondition[]
+}
+
+model EndCondition {
+  id                Int               @id @default(autoincrement())
+  endConditionId    Int
+  parameterName     String
+  operator          String // TIME, PEOPLE, BANK
+  value             String
+  isCompleted       Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  eventEndCondition EventEndCondition @relation(fields: [endConditionId], references: [id], onDelete: Cascade)
 }
