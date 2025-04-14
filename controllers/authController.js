@@ -33,7 +33,7 @@ exports.login = async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
         // Проверяем правильность пароля
-        const isPasswordValid = bcrypt.compare(password, user.password);
+        const isPasswordValid = await bcrypt.compare(password, user.password);
 
         if (!isPasswordValid) {
             return res.status(401).json({ message: 'Invalid password' });
