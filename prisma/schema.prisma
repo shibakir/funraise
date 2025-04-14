@@ -62,6 +62,7 @@ model Event {
   bankAmount     Float               @default(0)
   status         String
   type           String // DONATION or FUNDRAISING or JACKPOT
+  imageUrl       String? // URL of clicker image
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
   userId         Int // создатель ивента
@@ -149,8 +150,8 @@ model EventEndCondition {
 model EndCondition {
   id                Int               @id @default(autoincrement())
   endConditionId    Int
-  parameterName     String
-  operator          String // TIME, PEOPLE, BANK
+  parameterName     String // TIME, PEOPLE, BANK
+  operator          String // <, <=, >, >=
   value             String
   isCompleted       Boolean           @default(false)
   createdAt         DateTime          @default(now())

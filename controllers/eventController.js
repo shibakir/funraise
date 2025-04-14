@@ -1,6 +1,7 @@
 const prisma = require('@prisma/client');
 const { PrismaClient } = prisma;
 const prismaClient = new PrismaClient();
+const { uploadImage } = require('../utils/firebase');
 
 exports.getAllEvents = async (req, res) => {
     try {
@@ -28,6 +29,7 @@ exports.getEventById = async (req, res) => {
 
 exports.createEvent = async (req, res) => {
     const { name, description, status, type, recipientId, endConditions } = req.body;
+    const image = req.file;
 
     const userId = 1;
     //const userId = req.user.id; // Получаем ID пользователя из токена JWT
@@ -45,12 +47,24 @@ exports.createEvent = async (req, res) => {
             });
         }
 
+        let imageUrl = null;
+        if (image) {
+            const path = `events/${Date.now()}-${image.originalname}`;
+            try {
+                imageUrl = await uploadImage(image, path);
+            } catch (error) {
+                console.error('Error uploading image:', error);
+                return res.status(500).json({ error: 'Trying to upload image failed' });
+            }
+        }
+
         const eventData = {
             name,
             description,
             status,
             type,
-            userId
+            userId,
+            imageUrl
         };
 
         if (type === 'DONATION' || type === 'FUNDRAISING') {

@@ -1,8 +1,17 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
+const multer = require('multer');
 
 const app = express();
 const prisma = new PrismaClient();
+
+// Настройка multer для обработки загрузки файлов
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 2 * 1024 * 1024, // ограничение 2MB
+  },
+});
 
 // middleware
 app.use(express.json());

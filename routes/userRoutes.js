@@ -4,9 +4,9 @@ const userController = require('../controllers/userController');
 const { authenticateToken } = require('../middleware/authMiddleware');
 
 // Применяем middleware аутентификации ко всем маршрутам
-router.use(authenticateToken);
+//router.use(authenticateToken);
 
-// Маршрут для получения всех пользователей
+// Маршрут для получения всех пользователей с возможностью поиска
 router.get('/', userController.getAllUsers);
 
 // Маршрут для получения пользователя по ID

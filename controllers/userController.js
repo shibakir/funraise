@@ -4,9 +4,27 @@ const prismaClient = new PrismaClient();
 
 exports.getAllUsers = async (req, res) => {
     try {
-        const users = await prismaClient.user.findMany();
+        const { search } = req.query;
+        //console.log('Search query:', search);
+        
+        let users;
+        if (search) {
+            users = await prismaClient.user.findMany({
+                where: {
+                    username: { contains: search }
+                },
+                select: { id: true, username: true, image: true }
+            });
+        } else {
+            users = await prismaClient.user.findMany({
+                select: { id: true, username: true, image: true }
+            });
+        }
+        
+        //console.log('Found users:', users);
         res.status(200).json(users);
     } catch (error) {
+        console.error('Error getting users:', error);
         res.status(500).json({ error: 'Error getting users' });
     }
 };  
