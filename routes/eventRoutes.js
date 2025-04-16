@@ -33,7 +33,7 @@ router.get('/:id', eventController.getEventById);
 router.post('/', upload.single('image'), eventController.createEvent);
 
 // Маршрут для обновления события
-router.put('/:id', eventController.updateEvent);
+//router.put('/:id', eventController.updateEvent);
 
 // Маршрут для удаления события
 //router.delete('/:id', eventController.deleteEvent);

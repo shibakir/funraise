@@ -3,6 +3,8 @@ const { PrismaClient } = prisma;
 const prismaClient = new PrismaClient();
 const { uploadImage } = require('../utils/firebase');
 const { calculateEndConditionsProgress } = require('../utils/helpers/eventHelpers');
+const { checkAndUpdateEventStatus } = require('../utils/helpers/conditionHelpers');
+const { checkTimeConditions } = require('../utils/timeConditionChecker');
 
 /**
  * Сервис для работы с событиями
@@ -43,14 +45,27 @@ const eventService = {
      */
     async getEventById(id) {
         const event = await prismaClient.event.findUnique({
-            where: { id: parseInt(id) }
+            where: { id: parseInt(id) },
+            include: {
+                endConditions: {
+                    include: {
+                        conditions: true
+                    }
+                }
+            }
         });
         
         if (!event) {
             throw new Error('Event not found');
         }
         
-        return event;
+        // Добавляем массив прогрессов для каждой группы условий
+        const conditionsProgress = await calculateEndConditionsProgress(event.id);
+
+        return {
+            ...event,
+            conditionsProgress
+        };
     },
     
     /**
@@ -138,6 +153,12 @@ const eventService = {
             await prisma.endCondition.createMany({
                 data: allFlatConditions
             });
+
+            // Проверяем временные условия
+            await checkTimeConditions();
+            
+            // Проверяем, нужно ли обновить статус события
+            await checkAndUpdateEventStatus(createdEvent.id);
             
             // Возврат созданного события с полной структурой
             return await prisma.event.findUnique({
@@ -252,7 +273,8 @@ const eventService = {
                 id: true,
                 name: true,
                 description: true,
-                imageUrl: true
+                imageUrl: true,
+                status: true
             }
         });
 

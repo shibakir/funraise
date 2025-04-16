@@ -1,5 +1,4 @@
 const eventService = require('../services/eventService');
-const { uploadImage } = require('../utils/firebase');
 const dotenv = require('dotenv');
 
 dotenv.config();
