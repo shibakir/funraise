@@ -9,12 +9,18 @@ const prisma = new PrismaClient();
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 2 * 1024 * 1024, // ограничение 2MB
+    fileSize: 5 * 1024 * 1024, // ограничение 5MB
   },
 });
 
 // middleware
 app.use(express.json());
+
+// Логирование всех запросов
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
 
 // add routes
 const userRoutes = require('./routes/userRoutes');
@@ -34,7 +40,7 @@ app.use((req, res, next) => {
 
 // Middleware для обработки остальных ошибок
 app.use((err, req, res, next) => {
-    console.error(err.stack);
+    console.error('Server error:', err.stack);
     res.status(500).json({ message: 'Ошибка на сервере' });
 });
 

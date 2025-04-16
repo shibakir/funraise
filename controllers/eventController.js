@@ -28,8 +28,20 @@ exports.getEventById = async (req, res) => {
 };
 
 exports.createEvent = async (req, res) => {
-    const { name, description, status, type, recipientId, endConditions } = req.body;
+    console.log('Request body:', req.body);
+    console.log('Request file:', req.file);
+
+    const { name, description, type, recipientId, endConditions } = req.body;
     const image = req.file;
+
+    // Парсим endConditions из JSON строки
+    let parsedEndConditions;
+    try {
+        parsedEndConditions = JSON.parse(endConditions);
+    } catch (error) {
+        console.error('Error parsing endConditions:', error);
+        return res.status(400).json({ error: 'Invalid endConditions format' });
+    }
 
     const userId = 1;
     //const userId = req.user.id; // Получаем ID пользователя из токена JWT
@@ -41,7 +53,7 @@ exports.createEvent = async (req, res) => {
                 error: 'For types DONATION and FUNDRAISING, you must specify the recipient of the funds (recipientId)' 
             });
         }
-        if (!endConditions || !Array.isArray(endConditions) || endConditions.length === 0) {
+        if (!parsedEndConditions || !Array.isArray(parsedEndConditions) || parsedEndConditions.length === 0) {
             return res.status(400).json({
                 error: 'You must specify at least one event end condition'
             });
@@ -51,17 +63,26 @@ exports.createEvent = async (req, res) => {
         if (image) {
             const path = `events/${Date.now()}-${image.originalname}`;
             try {
+                console.log('Attempting to upload image to Firebase...');
                 imageUrl = await uploadImage(image, path);
+                console.log('Image uploaded successfully:', imageUrl);
             } catch (error) {
-                console.error('Error uploading image:', error);
-                return res.status(500).json({ error: 'Trying to upload image failed' });
+                console.error('Detailed error uploading image:', {
+                    message: error.message,
+                    code: error.code,
+                    stack: error.stack
+                });
+                return res.status(500).json({ 
+                    error: 'Failed to upload image',
+                    details: error.message 
+                });
             }
         }
 
         const eventData = {
             name,
             description,
-            status,
+            status: 'active',
             type,
             userId,
             imageUrl
@@ -78,10 +99,9 @@ exports.createEvent = async (req, res) => {
             });
 
             const createdEndConditions = await prisma.eventEndCondition.createMany({
-                data: endConditions.map(() => ({
+                data: parsedEndConditions.map(() => ({
                     eventId: createdEvent.id
                 })),
-                //skipDuplicates: false
             });
 
             // Нужно получить их ID (поскольку createMany не возвращает id)
@@ -91,7 +111,7 @@ exports.createEvent = async (req, res) => {
             });
 
             const allFlatConditions = [];
-            endConditions.forEach((ec, index) => {
+            parsedEndConditions.forEach((ec, index) => {
                 ec.conditions.forEach(cond => {
                     allFlatConditions.push({
                         endConditionId: endConditionsFromDb[index].id,
@@ -207,5 +227,45 @@ exports.deleteEvent = async (req, res) => {
         res.status(204).send();
     } catch (error) {
         res.status(500).json({ error: 'Error deleting event' });
+    }
+};
+
+exports.getUserEvents = async (req, res) => {
+    console.log('getUserEvents');
+    console.log(req.params);
+    console.log(req.query);
+
+    const userId = req.params.userId;
+    const { limit = 10 } = req.query;
+
+    console.log(userId);
+    console.log(limit);
+    
+    if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    try {
+        const events = await prismaClient.event.findMany({
+            where: {
+                userId: parseInt(userId)
+            },
+            orderBy: {
+                createdAt: 'desc'
+            },
+            take: parseInt(limit),
+            select: {
+                id: true,
+                name: true,
+                status: true,
+                bankAmount: true,
+                imageUrl: true
+            }
+        });
+
+        res.status(200).json(events);
+    } catch (error) {
+        console.error('Error getting user events:', error);
+        res.status(500).json({ error: 'Error getting user events' });
     }
 };

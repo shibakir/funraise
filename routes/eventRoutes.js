@@ -8,8 +8,16 @@ const multer = require('multer');
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 2 * 1024 * 1024, // ограничение 2MB
+    fileSize: 5 * 1024 * 1024, // ограничение 5MB
   },
+  fileFilter: (req, file, cb) => {
+    // Проверяем тип файла
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
 });
 
 // Применяем middleware аутентификации ко всем маршрутам
