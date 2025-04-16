@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { checkAndUpdateEventStatus } = require('./helpers/conditionHelpers');
 
 async function checkTimeConditions() {
     try {
@@ -15,11 +16,17 @@ async function checkTimeConditions() {
         });
 
         const currentTime = new Date();
+        // Отслеживаем, какие eventId были затронуты
+        const affectedEventIds = new Set();
 
         for (const condition of timeConditions) {
             const conditionTime = new Date(condition.value);
+            const eventId = condition.eventEndCondition.eventId;
             
             if (currentTime >= conditionTime) {
+                // Добавляем eventId в список затронутых
+                affectedEventIds.add(eventId);
+                
                 // Обновляем isCompleted для EndCondition
                 await prisma.endCondition.update({
                     where: { id: condition.id },
@@ -41,6 +48,11 @@ async function checkTimeConditions() {
                     });
                 }
             }
+        }
+
+        // Для каждого затронутого события проверяем, нужно ли обновить его статус
+        for (const eventId of affectedEventIds) {
+            await checkAndUpdateEventStatus(eventId);
         }
 
         return { success: true, message: "Time conditions checked successfully" };

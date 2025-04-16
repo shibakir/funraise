@@ -1,6 +1,8 @@
 const prisma = require('@prisma/client');
 const { PrismaClient } = prisma;
 const prismaClient = new PrismaClient();
+const participationConditionChecker = require('../utils/participationConditionChecker');
+const bankConditionChecker = require('../utils/bankConditionChecker');
 
 /**
  * Сервис для работы с участием пользователей в событиях
@@ -11,7 +13,7 @@ const participationService = {
      * @returns {Promise<Array>} - Массив всех участий
      */
     async getAllParticipations() {
-        return await prismaClient.participation.findMany({
+        return prismaClient.participation.findMany({
             include: {
                 user: true,
                 event: true
@@ -74,7 +76,7 @@ const participationService = {
         }
         
         // Начинаем транзакцию
-        return await prismaClient.$transaction(async (prisma) => {
+        return prismaClient.$transaction(async (prisma) => {
             // Создаем участие
             const newParticipation = await prisma.participation.create({
                 data: {
@@ -97,6 +99,12 @@ const participationService = {
                     }
                 }
             });
+            
+            // Проверяем условия окончания события по количеству участников
+            await participationConditionChecker.checkPeopleConditions(eventId);
+            
+            // Проверяем условия окончания события по сумме в банке
+            await bankConditionChecker.checkBankConditions(eventId);
             
             return newParticipation;
         });
@@ -121,12 +129,18 @@ const participationService = {
         }
         
         // Начинаем транзакцию
-        return await prismaClient.$transaction(async (prisma) => {
+        return prismaClient.$transaction(async (prisma) => {
+            // Получаем текущую сумму депозита
+            const currentDeposit = participation.deposit;
+            
+            // Увеличиваем сумму депозита на указанное значение
+            const newDeposit = currentDeposit + parseFloat(deposit);
+            
             // Обновляем участие
             const updatedParticipation = await prisma.participation.update({
                 where: { id: parseInt(id) },
                 data: {
-                    deposit: parseFloat(deposit)
+                    deposit: newDeposit
                 },
                 include: {
                     user: true,
@@ -135,15 +149,20 @@ const participationService = {
             });
             
             // Обновляем сумму в банке события
-            const depositDiff = parseFloat(deposit) - participation.deposit;
             await prisma.event.update({
                 where: { id: participation.eventId },
                 data: {
                     bankAmount: {
-                        increment: depositDiff
+                        increment: parseFloat(deposit)
                     }
                 }
             });
+            
+            // Проверяем условия окончания события по количеству участников
+            await participationConditionChecker.checkPeopleConditions(participation.eventId);
+            
+            // Проверяем условия окончания события по сумме в банке
+            await bankConditionChecker.checkBankConditions(participation.eventId);
             
             return updatedParticipation;
         });

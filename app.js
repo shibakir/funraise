@@ -3,7 +3,7 @@ const { PrismaClient } = require('@prisma/client');
 const multer = require('multer');
 
 const cron = require('node-cron');
-const { checkTimeConditions } = require('./utils/timeConditionService');
+const { checkTimeConditions } = require('./utils/timeConditionChecker');
 
 const app = express();
 const prisma = new PrismaClient();
