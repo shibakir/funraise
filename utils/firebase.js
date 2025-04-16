@@ -26,31 +26,31 @@ try {
 
 const uploadImage = async (file, path) => {
   try {
-    console.log('Starting image upload to Firebase...');
-    console.log('File info:', {
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
-      buffer: file.buffer ? 'Buffer exists' : 'No buffer'
-    });
+    //console.log('Starting image upload to Firebase...');
+    //console.log('File info:', {
+    //  originalname: file.originalname,
+    //  mimetype: file.mimetype,
+    //  size: file.size,
+    //  buffer: file.buffer ? 'Buffer exists' : 'No buffer'
+    //});
 
     if (!file.buffer) {
       throw new Error('File buffer is missing');
     }
 
     const storageRef = ref(storage, path);
-    console.log('Storage reference created:', path);
+    //console.log('Storage reference created:', path);
 
-    console.log('Uploading bytes...');
+    //console.log('Uploading bytes...');
     const snapshot = await uploadBytes(storageRef, file.buffer);
-    console.log('Upload completed:', {
-      metadata: snapshot.metadata,
-      ref: snapshot.ref
-    });
+    //console.log('Upload completed:', {
+    //  metadata: snapshot.metadata,
+    //  ref: snapshot.ref
+    //});
 
-    console.log('Getting download URL...');
+    //console.log('Getting download URL...');
     const downloadURL = await getDownloadURL(snapshot.ref);
-    console.log('Download URL obtained:', downloadURL);
+    //console.log('Download URL obtained:', downloadURL);
 
     return downloadURL;
   } catch (error) {

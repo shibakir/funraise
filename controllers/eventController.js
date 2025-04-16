@@ -2,6 +2,9 @@ const prisma = require('@prisma/client');
 const { PrismaClient } = prisma;
 const prismaClient = new PrismaClient();
 const { uploadImage } = require('../utils/firebase');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 exports.getAllEvents = async (req, res) => {
     try {
