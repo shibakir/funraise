@@ -2,6 +2,7 @@ const prisma = require('@prisma/client');
 const { PrismaClient } = prisma;
 const prismaClient = new PrismaClient();
 const { uploadImage } = require('../utils/firebase');
+const { calculateEndConditionsProgress } = require('../utils/helpers/eventHelpers');
 
 /**
  * Сервис для работы с событиями
@@ -9,10 +10,30 @@ const { uploadImage } = require('../utils/firebase');
 const eventService = {
     /**
      * Получение всех событий
-     * @returns {Promise<Array>} - Массив событий
+     * @returns {Promise<Array>} - Массив событий с базовой информацией и прогрессом условий
      */
     async getAllEvents() {
-        return await prismaClient.event.findMany();
+        const events = await prismaClient.event.findMany({
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                imageUrl: true
+            }
+        });
+
+        // Для каждого события получаем прогресс выполнения условий
+        const eventsWithProgress = await Promise.all(
+            events.map(async (event) => {
+                const progress = await calculateEndConditionsProgress(event.id);
+                return {
+                    ...event,
+                    conditionsProgress: progress
+                };
+            })
+        );
+
+        return eventsWithProgress;
     },
     
     /**
@@ -214,12 +235,12 @@ const eventService = {
      * @param {number} userId - ID пользователя
      * @param {Object} options - Опции запроса
      * @param {number} options.limit - Лимит количества возвращаемых событий
-     * @returns {Promise<Array>} - Массив событий пользователя
+     * @returns {Promise<Array>} - Массив событий пользователя с базовой информацией и прогрессом условий
      */
     async getUserEvents(userId, options = {}) {
         const { limit = 10 } = options;
         
-        return await prismaClient.event.findMany({
+        const events = await prismaClient.event.findMany({
             where: {
                 userId: parseInt(userId)
             },
@@ -230,11 +251,23 @@ const eventService = {
             select: {
                 id: true,
                 name: true,
-                status: true,
-                bankAmount: true,
+                description: true,
                 imageUrl: true
             }
         });
+
+        // Для каждого события получаем прогресс выполнения условий
+        const eventsWithProgress = await Promise.all(
+            events.map(async (event) => {
+                const progress = await calculateEndConditionsProgress(event.id);
+                return {
+                    ...event,
+                    conditionsProgress: progress
+                };
+            })
+        );
+
+        return eventsWithProgress;
     }
 };
 
