@@ -100,10 +100,6 @@ exports.deleteEvent = async (req, res) => {
 };
 
 exports.getUserEvents = async (req, res) => {
-    console.log('getUserEvents');
-    console.log(req.params);
-    console.log(req.query);
-
     const userId = req.params.userId;
     const { limit } = req.query;
     
@@ -117,5 +113,38 @@ exports.getUserEvents = async (req, res) => {
     } catch (error) {
         console.error('Error getting user events:', error);
         res.status(500).json({ error: 'Error getting user events' });
+    }
+};
+
+/**
+ * Получение условий окончания события по ID события
+ */
+exports.getEventEndConditions = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const endConditions = await eventService.getEventEndConditions(id);
+        res.status(200).json(endConditions);
+    } catch (error) {
+        console.error('Error getting event end conditions:', error);
+        
+        if (error.message === 'Event end conditions not found') {
+            return res.status(404).json({ error: 'Event end conditions not found' });
+        }
+        
+        res.status(500).json({ error: 'Error getting event end conditions' });
+    }
+};
+
+/**
+ * Получение текущего банка события по ID события
+ */
+exports.getEventBankAmount = async (req, res) => {
+    const { id } = req.params;
+    try {
+        const bankInfo = await eventService.getEventBankAmount(id);
+        res.status(200).json(bankInfo);
+    } catch (error) {
+        console.error('Error getting event bank amount:', error);
+        res.status(500).json({ error: 'Error getting event bank amount' });
     }
 };

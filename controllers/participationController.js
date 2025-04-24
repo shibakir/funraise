@@ -76,4 +76,20 @@ exports.deleteParticipation = async (req, res) => {
         
         res.status(500).json({ error: 'Error deleting participation' });
     }
+};
+
+exports.getParticipationByUserAndEvent = async (req, res) => {
+    const { userId, eventId } = req.params;
+    
+    try {
+        const participation = await participationService.getParticipationByUserAndEvent(userId, eventId);
+        res.status(200).json(participation);
+    } catch (error) {
+        if (error.message === 'Participation not found') {
+            return res.status(404).json({ error: 'Participation not found' });
+        }
+        console.error('Error getting participation by user and event:', error);
+        
+        res.status(500).json({ error: 'Error getting participation' });
+    }
 }; 

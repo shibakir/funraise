@@ -16,6 +16,12 @@ router.get('/:id', userController.getUserById);
 // Маршрут для получения событий пользователя
 router.get('/:userId/events', eventController.getUserEvents);
 
+// Маршрут для получения транзакций пользователя
+router.get('/:userId/transactions', userController.getUserTransactions);
+
+// Route для получения баланса
+router.get('/:userId/balance', userController.getUserBalance);
+
 // Маршрут для создания нового пользователя
 router.post('/', userController.createUser);
 

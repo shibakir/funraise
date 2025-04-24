@@ -12,16 +12,15 @@ const prisma = new PrismaClient();
 const compareValues = (operator, actualValue, conditionValue) => {
     try {
         switch (operator) {
-            case "<":
+            case "lt":
                 return actualValue < conditionValue;
-            case "<=":
+            case "lte":
                 return actualValue <= conditionValue;
-            case ">":
+            case "gt":
                 return actualValue > conditionValue;
-            case ">=":
+            case "gte":
                 return actualValue >= conditionValue;
-            case "==":
-            case "=":
+            case "eq":
                 return actualValue === conditionValue;
             default:
                 throw new Error(`Неподдерживаемый оператор: ${operator}`);
@@ -42,24 +41,24 @@ const checkAndUpdateEventStatus = async (eventId) => {
     try {
         // Проверяем, что ID события передан и является числом
         if (!eventId || isNaN(parseInt(eventId))) {
-            throw new Error('Недопустимый ID события');
+            throw new Error('Invalid event ID.');
         }
         
         const parsedEventId = parseInt(eventId);
-        
+
         // Получаем событие
         const event = await prisma.event.findUnique({
             where: { id: parsedEventId }
         });
         
         if (!event) {
-            throw new Error(`Событие с ID ${parsedEventId} не найдено`);
+            throw new Error(`Event with ID ${parsedEventId} not found`);
         }
         
         // Проверяем, находится ли событие все еще в активном состоянии
-        if (event.status !== 'ACTIVE') {
-            return false;
-        }
+        //if (event.status !== 'active') {
+        //    return false;
+        //}
         
         // Получаем все группы условий окончания для события
         const eventEndConditions = await prisma.eventEndCondition.findMany({
@@ -78,7 +77,7 @@ const checkAndUpdateEventStatus = async (eventId) => {
             // Обновляем статус события на COMPLETED
             await prisma.event.update({
                 where: { id: parsedEventId },
-                data: { status: 'COMPLETED' }
+                data: { status: 'completed' }
             });
             
             return true;
@@ -86,7 +85,7 @@ const checkAndUpdateEventStatus = async (eventId) => {
         
         return false;
     } catch (error) {
-        console.error(`Ошибка проверки статуса события: ${error.message}`);
+        console.error(`Error on check event status: ${error.message}`);
         return false;
     }
 };

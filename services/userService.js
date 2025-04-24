@@ -72,8 +72,8 @@ const userService = {
     async updateUser(id, userData) {
         const { email, name, password, image } = userData;
         
-        return await prismaClient.user.update({
-            where: { id: parseInt(id) },
+        return prismaClient.user.update({
+            where: {id: parseInt(id)},
             data: {
                 email,
                 name,
@@ -92,6 +92,33 @@ const userService = {
         await prismaClient.user.delete({
             where: { id: parseInt(id) }
         });
+    },
+
+    /**
+     * Проверка баланса пользователя
+     * @param {number} userId - ID пользователя
+     * @param {number} amount - Сумма для проверки
+     * @returns {Promise<boolean>} - Результат проверки
+     */
+    async checkUserBalance(userId, amount) {
+        // Получаем все транзакции пользователя
+        const transactions = await prismaClient.transaction.findMany({
+            where: { userId: parseInt(userId) }
+        });
+        
+        // Считаем текущий баланс
+        const currentBalance = transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+        
+        // Проверяем, достаточно ли средств
+        return currentBalance >= parseFloat(amount);
+    },
+
+    async getUserBalance(userId) {
+        const transactions = await prismaClient.transaction.findMany({
+            where: { userId: parseInt(userId) }
+        });
+        const currentBalance = transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+        return currentBalance;
     }
 };
 

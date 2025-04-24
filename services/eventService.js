@@ -3,8 +3,11 @@ const { PrismaClient } = prisma;
 const prismaClient = new PrismaClient();
 const { uploadImage } = require('../utils/firebase');
 const { calculateEndConditionsProgress } = require('../utils/helpers/eventHelpers');
-const { checkAndUpdateEventStatus } = require('../utils/helpers/conditionHelpers');
 const { checkTimeConditions } = require('../utils/timeConditionChecker');
+
+const participationConditionChecker = require('../utils/participationConditionChecker');
+const bankConditionChecker = require('../utils/bankConditionChecker');
+const {checkAndUpdateEventStatus} = require("../utils/helpers/conditionHelpers");
 
 /**
  * Сервис для работы с событиями
@@ -119,23 +122,23 @@ const eventService = {
         }
         
         // Запуск транзакции для создания события и связанных сущностей
-        return await prismaClient.$transaction(async (prisma) => {
+        let eventId = await prismaClient.$transaction(async (prisma) => {
             const createdEvent = await prisma.event.create({
                 data: eventDataToCreate,
             });
-            
+
             const createdEndConditions = await prisma.eventEndCondition.createMany({
                 data: parsedEndConditions.map(() => ({
                     eventId: createdEvent.id
                 })),
             });
-            
+
             // Получение ID созданных условий окончания
             const endConditionsFromDb = await prisma.eventEndCondition.findMany({
-                where: { eventId: createdEvent.id },
-                orderBy: { id: 'asc' }
+                where: {eventId: createdEvent.id},
+                orderBy: {id: 'asc'}
             });
-            
+
             // Подготовка данных для создания условий
             const allFlatConditions = [];
             parsedEndConditions.forEach((ec, index) => {
@@ -144,33 +147,38 @@ const eventService = {
                         endConditionId: endConditionsFromDb[index].id,
                         parameterName: cond.parameterName,
                         operator: cond.operator,
-                        value: cond.value.toString()
+                        // remove all symbols except digits, remove leading zeros
+                        value: cond.value.toString().replace(/\D/g, '').replace(/^0+/, '') || '0'
                     });
                 });
             });
-            
+
             // Создание условий
             await prisma.endCondition.createMany({
                 data: allFlatConditions
             });
 
-            // Проверяем временные условия
-            await checkTimeConditions();
-            
-            // Проверяем, нужно ли обновить статус события
-            await checkAndUpdateEventStatus(createdEvent.id);
-            
-            // Возврат созданного события с полной структурой
-            return await prisma.event.findUnique({
-                where: { id: createdEvent.id },
-                include: {
-                    endConditions: {
-                        include: {
-                            conditions: true
-                        }
+            return createdEvent.id;
+        });
+
+        // Проверяем временные условия
+        await checkTimeConditions();
+
+        // Проверяем, нужно ли обновить статус события
+        await participationConditionChecker.checkPeopleConditions(eventId);
+        await bankConditionChecker.checkBankConditions(eventId);
+        await checkAndUpdateEventStatus(eventId);
+
+        // Возврат созданного события с полной структурой
+        return prismaClient.event.findUnique({
+            where: {id: eventId},
+            include: {
+                endConditions: {
+                    include: {
+                        conditions: true
                     }
                 }
-            });
+            }
         });
     },
     
@@ -290,6 +298,69 @@ const eventService = {
         );
 
         return eventsWithProgress;
+    },
+    
+    /**
+     * Получение условий окончания события по ID события
+     * @param {number} eventId - ID события
+     * @returns {Promise<Array>} - Массив условий окончания события с вложенными условиями
+     */
+    async getEventEndConditions(eventId) {
+        const endConditions = await prismaClient.eventEndCondition.findMany({
+            where: { eventId: parseInt(eventId) },
+            include: {
+                conditions: true
+            }
+        });
+        
+        if (!endConditions || endConditions.length === 0) {
+            throw new Error('Event end conditions not found');
+        }
+        
+        // Добавляем прогресс для каждой группы условий // TODO: do not use
+        const conditionsProgress = await calculateEndConditionsProgress(parseInt(eventId));
+        
+        return endConditions.map((group, index) => ({
+            ...group,
+            progress: conditionsProgress[index] || 0
+        }));
+    },
+    
+    /**
+     * Получение текущего банка события (суммы всех участий)
+     * @param {number} eventId - ID события
+     * @returns {Promise<number>} - Текущая сумма в банке
+     */
+    async getEventBankAmount(eventId) {
+        // Используем агрегацию для подсчета суммы депозитов
+        const result = await prismaClient.participation.aggregate({
+            where: { eventId: parseInt(eventId) },
+            _sum: {
+                deposit: true
+            },
+            _count: {
+                id: true
+            }
+        });
+        
+        // Обновляем сумму в банке события, если она отличается от расчетной
+        /*
+        const event = await prismaClient.event.findUnique({
+            where: { id: parseInt(eventId) }
+        });
+        
+        if (event && result._sum.deposit && event.bankAmount !== result._sum.deposit) {
+            await prismaClient.event.update({
+                where: { id: parseInt(eventId) },
+                data: { bankAmount: result._sum.deposit }
+            });
+        }
+        */
+        
+        return {
+            bankAmount: result._sum.deposit || 0,
+            participantsCount: result._count.id || 0
+        };
     }
 };
 

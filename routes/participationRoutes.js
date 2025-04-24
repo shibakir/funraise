@@ -12,6 +12,9 @@ router.get('/', participationController.getAllParticipations);
 // Маршрут для получения участия по ID
 router.get('/:id', participationController.getParticipationById);
 
+// Маршрут для получения участия по ID пользователя и ID события
+router.get('/user/:userId/event/:eventId', participationController.getParticipationByUserAndEvent);
+
 // Маршрут для создания нового участия
 router.post('/', participationController.createParticipation);
 
