@@ -1,8 +1,4 @@
-const prisma = require('@prisma/client');
-const { PrismaClient } = prisma;
-const prismaClient = new PrismaClient();
-const bcrypt = require('bcrypt');
-const jwtUtils = require('../utils/jwtUtils');
+const authService = require('../services/authService');
 
 exports.login = async (req, res) => {
     if (!req.body) {
@@ -20,32 +16,17 @@ exports.login = async (req, res) => {
     }
 
     try {
-        let user;
-
-        // Поиск пользователя по email или username
-        const whereCondition = email ? { email } : { username };
-        user = await prismaClient.user.findUnique({
-            where: whereCondition,
-        });
-
-        // Если пользователь не найден
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        // Проверяем правильность пароля
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-
-        if (!isPasswordValid) {
-            return res.status(401).json({ message: 'Invalid password' });
-        }
-
-        // Генерируем токен
-        const token = jwtUtils.generateToken(user);
-
-        // Отправляем токен клиенту
+        const { token } = await authService.authenticate({ email, username, password });
         res.status(200).json({ token });
     } catch (error) {
-        console.error('Server error:', error);
+        console.error('Authentication error:', error);
+        
+        if (error.message === 'User not found') {
+            return res.status(404).json({ message: 'User not found' });
+        } else if (error.message === 'Invalid password') {
+            return res.status(401).json({ message: 'Invalid password' });
+        }
+        
         res.status(500).json({ message: 'Authentication error.' });
     }
 }; 
