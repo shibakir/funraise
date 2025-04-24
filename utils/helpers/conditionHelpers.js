@@ -23,10 +23,10 @@ const compareValues = (operator, actualValue, conditionValue) => {
             case "eq":
                 return actualValue === conditionValue;
             default:
-                throw new Error(`Неподдерживаемый оператор: ${operator}`);
+                throw new Error(`Unsupported operator: ${operator}`);
         }
     } catch (error) {
-        console.error(`Ошибка сравнения значений: ${error.message}`);
+        console.error(`Error on comparison values: ${error.message}`);
         // По умолчанию считаем, что условие не выполнено
         return false;
     }
