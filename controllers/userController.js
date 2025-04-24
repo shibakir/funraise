@@ -1,4 +1,7 @@
 const userService = require('../services/userService');
+const prisma = require('@prisma/client');
+const { PrismaClient } = prisma;
+const prismaClient = new PrismaClient();
 
 exports.getAllUsers = async (req, res) => {
     try {
@@ -21,6 +24,49 @@ exports.getUserById = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
         res.status(500).json({ error: 'Error getting user' });
+    }
+};
+
+exports.getUserTransactions = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        // Проверяем права доступа: только владелец аккаунта или админ могут видеть транзакции
+       // if (parseInt(userId) !== req.user.id) {
+       //     return res.status(403).json({ message: 'Access denied. Not your transactions.' });
+       // }
+        
+        // Получаем транзакции пользователя
+        const transactions = await prismaClient.transaction.findMany({
+            where: { userId: parseInt(userId) },
+            include: {
+                user: true
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+        
+        res.status(200).json(transactions);
+    } catch (error) {
+        console.error('Error getting user transactions:', error);
+        res.status(500).json({ error: 'Error getting user transactions' });
+    }
+};
+
+exports.getUserBalance = async (req, res) => {
+    const { userId } = req.params;
+
+    //if (parseInt(userId) !== req.user.id) {
+    //    return res.status(403).json({ message: 'Access denied. Not your transactions.' });
+    //}
+
+    try {
+        const balance = await userService.getUserBalance(userId);
+        res.status(200).json(balance);
+    } catch (error) {
+        console.error('Error getting user balance:', error);
+        res.status(500).json({ error: 'Error getting user balance' });
     }
 };
 

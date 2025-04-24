@@ -1,8 +1,10 @@
 const prisma = require('@prisma/client');
 const { PrismaClient } = prisma;
 const prismaClient = new PrismaClient();
+const userService = require('./userService');
 const participationConditionChecker = require('../utils/participationConditionChecker');
 const bankConditionChecker = require('../utils/bankConditionChecker');
+const transactionService = require('./transactionService');
 
 /**
  * Сервис для работы с участием пользователей в событиях
@@ -49,7 +51,7 @@ const participationService = {
      */
     async createParticipation(participationData) {
         const { deposit, userId, eventId } = participationData;
-        
+
         // Проверяем существование пользователя и события
         const [user, event] = await Promise.all([
             prismaClient.user.findUnique({ where: { id: parseInt(userId) } }),
@@ -75,8 +77,14 @@ const participationService = {
             throw new Error('User already participates in this event');
         }
         
+        // Проверяем, достаточно ли средств у пользователя
+        const hasEnoughBalance = await userService.checkUserBalance(userId, deposit);
+        if (!hasEnoughBalance) {
+            throw new Error('Insufficient funds');
+        }
+        
         // Начинаем транзакцию
-        return prismaClient.$transaction(async (prisma) => {
+        let newParticipation = prismaClient.$transaction(async (prisma) => {
             // Создаем участие
             const newParticipation = await prisma.participation.create({
                 data: {
@@ -100,14 +108,21 @@ const participationService = {
                 }
             });
             
-            // Проверяем условия окончания события по количеству участников
-            await participationConditionChecker.checkPeopleConditions(eventId);
-            
-            // Проверяем условия окончания события по сумме в банке
-            await bankConditionChecker.checkBankConditions(eventId);
-            
+            // Создаем отрицательную транзакцию для пользователя
+            await prisma.transaction.create({
+                data: {
+                    amount: -Math.abs(parseFloat(deposit)),
+                    userId: parseInt(userId)
+                }
+            });
             return newParticipation;
         });
+
+        // Проверяем условия окончания события по количеству участников
+        await participationConditionChecker.checkPeopleConditions(eventId);
+        // Проверяем условия окончания события по сумме в банке
+        await bankConditionChecker.checkBankConditions(eventId);
+        return newParticipation;
     },
     
     /**
@@ -121,15 +136,22 @@ const participationService = {
         
         // Проверяем существование участия
         const participation = await prismaClient.participation.findUnique({
-            where: { id: parseInt(id) }
+            where: { id: parseInt(id) },
+            include: { user: true }
         });
         
         if (!participation) {
             throw new Error('Participation not found');
         }
         
+        // Проверяем, достаточно ли средств у пользователя
+        const hasEnoughBalance = await userService.checkUserBalance(participation.userId, deposit);
+        if (!hasEnoughBalance) {
+            throw new Error('Insufficient funds');
+        }
+        
         // Начинаем транзакцию
-        return prismaClient.$transaction(async (prisma) => {
+        let updatedParticipation = prismaClient.$transaction(async (prisma) => {
             // Получаем текущую сумму депозита
             const currentDeposit = participation.deposit;
             
@@ -158,14 +180,20 @@ const participationService = {
                 }
             });
             
-            // Проверяем условия окончания события по количеству участников
-            await participationConditionChecker.checkPeopleConditions(participation.eventId);
-            
-            // Проверяем условия окончания события по сумме в банке
-            await bankConditionChecker.checkBankConditions(participation.eventId);
-            
+            // Создаем отрицательную транзакцию для пользователя
+            await prisma.transaction.create({
+                data: {
+                    amount: -Math.abs(parseFloat(deposit)),
+                    userId: participation.userId
+                }
+            });
             return updatedParticipation;
         });
+        // Проверяем условия окончания события по количеству участников
+        await participationConditionChecker.checkPeopleConditions(participation.eventId);
+        // Проверяем условия окончания события по сумме в банке
+        await bankConditionChecker.checkBankConditions(participation.eventId);
+        return updatedParticipation;
     },
     
     /**
@@ -200,6 +228,31 @@ const participationService = {
                 }
             });
         });
+    },
+
+    /**
+     * Получение участия по ID пользователя и ID события
+     * @param {number} userId - ID пользователя
+     * @param {number} eventId - ID события
+     * @returns {Promise<Object>} - Данные участия или null
+     */
+    async getParticipationByUserAndEvent(userId, eventId) {
+        const participation = await prismaClient.participation.findFirst({
+            where: {
+                userId: parseInt(userId),
+                eventId: parseInt(eventId)
+            },
+            include: {
+                user: true,
+                event: true
+            }
+        });
+        
+        if (!participation) {
+            throw new Error('Participation not found');
+        }
+        
+        return participation;
     }
 };
 

@@ -30,11 +30,13 @@ const userRoutes = require('./routes/userRoutes');
 const authRoutes = require('./routes/authRoutes');
 const eventRoutes = require('./routes/eventRoutes');
 const participationRoutes = require('./routes/participationRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
 
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/events', eventRoutes);
 app.use('/participations', participationRoutes);
+app.use('/transactions', transactionRoutes);
 
 // Middleware для обработки 404 ошибок
 app.use((req, res, next) => {

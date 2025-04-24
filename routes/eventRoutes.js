@@ -26,11 +26,18 @@ const upload = multer({
 // Маршрут для получения всех событий
 router.get('/', eventController.getAllEvents);
 
+// Маршрут для создания нового события
+// Используем upload.single для обработки одного файла с полем 'image'
+router.post('/', upload.single('image'), eventController.createEvent);
+
 // Маршрут для получения события по ID
 router.get('/:id', eventController.getEventById);
 
-// Маршрут для создания нового события с возможностью загрузки изображения
-router.post('/', upload.single('image'), eventController.createEvent);
+// Маршрут для получения условий окончания события по ID события
+router.get('/:id/conditions', eventController.getEventEndConditions);
+
+// Маршрут для получения текущего банка события по ID события
+router.get('/:id/bank', eventController.getEventBankAmount);
 
 // Маршрут для обновления события
 //router.put('/:id', eventController.updateEvent);
