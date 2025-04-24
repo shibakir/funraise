@@ -15,15 +15,39 @@ const {checkAndUpdateEventStatus} = require("../utils/helpers/conditionHelpers")
 const eventService = {
     /**
      * Получение всех событий
+     * @param {Object} options - Опции запроса
+     * @param {number} options.page - Номер страницы
+     * @param {number} options.limit - Количество элементов на странице
+     * @param {string|null} options.userId - ID пользователя, если указан, исключаем его события из выборки
      * @returns {Promise<Array>} - Массив событий с базовой информацией и прогрессом условий
      */
-    async getAllEvents() {
+    async getAllEvents(options = {}) {
+        const { page = 1, limit = 10, userId = null } = options;
+        const skip = (page - 1) * limit;
+        
+        // Создаем условия поиска
+        const whereCondition = {};
+        
+        // Если указан userId, то исключаем события этого пользователя
+        if (userId) {
+            whereCondition.userId = {
+                not: parseInt(userId)
+            };
+        }
+        
         const events = await prismaClient.event.findMany({
+            where: whereCondition,
             select: {
                 id: true,
                 name: true,
                 description: true,
-                imageUrl: true
+                imageUrl: true,
+                status: true
+            },
+            skip,
+            take: limit,
+            orderBy: {
+                createdAt: 'desc'
             }
         });
 

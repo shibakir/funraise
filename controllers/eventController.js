@@ -5,9 +5,14 @@ dotenv.config();
 
 exports.getAllEvents = async (req, res) => {
     try {
-        const events = await eventService.getAllEvents();
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const userId = req.query.userId || null;
+        
+        const events = await eventService.getAllEvents({ page, limit, userId });
         res.status(200).json(events);
     } catch (error) {
+        console.error('Error getting events:', error);
         res.status(500).json({ error: 'Error getting events' });
     }
 };

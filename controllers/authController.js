@@ -16,8 +16,8 @@ exports.login = async (req, res) => {
     }
 
     try {
-        const { token } = await authService.authenticate({ email, username, password });
-        res.status(200).json({ token });
+        const { user, token } = await authService.authenticate({ email, username, password });
+        res.status(200).json({ user, token });
     } catch (error) {
         console.error('Authentication error:', error);
         
@@ -28,5 +28,38 @@ exports.login = async (req, res) => {
         }
         
         res.status(500).json({ message: 'Authentication error.' });
+    }
+};
+
+exports.register = async (req, res) => {
+    if (!req.body) {
+        return res.status(400).json({
+            message: 'Request body is missing'
+        });
+    }
+
+    console.log(req.body);
+    const { email, username, password } = req.body;
+
+
+    if (!email || !username || !password) {
+        return res.status(400).json({
+            message: 'Email, username, and password are required'
+        });
+    }
+
+    try {
+        const { user, token } = await authService.register({ email, username, password });
+        res.status(201).json({ user, token });
+    } catch (error) {
+        console.error('Registration error:', error);
+        
+        if (error.message === 'Email already in use') {
+            return res.status(409).json({ message: 'Email already in use' });
+        } else if (error.message === 'Username already in use') {
+            return res.status(409).json({ message: 'Username already in use' });
+        }
+        
+        res.status(500).json({ message: 'Registration error.' });
     }
 }; 

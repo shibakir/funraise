@@ -23,7 +23,8 @@ const upload = multer({
 // Применяем middleware аутентификации ко всем маршрутам
 //router.use(authenticateToken);
 
-// Маршрут для получения всех событий
+// Маршрут для получения всех событий с поддержкой пагинации
+// ?page=1&limit=10
 router.get('/', eventController.getAllEvents);
 
 // Маршрут для создания нового события

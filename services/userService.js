@@ -51,16 +51,20 @@ const userService = {
      * @returns {Promise<Object>} - Созданный пользователь
      */
     async createUser(userData) {
-        const { email, name, password, image } = userData;
+        const { email, username, password } = userData;
         
-        return await prismaClient.user.create({
+        const user = await prismaClient.user.create({
             data: {
                 email,
-                name,
+                username,
                 password,
-                image
             }
         });
+
+        // Инициализируем достижения для нового пользователя
+        await this.initUserAchievements(user.id);
+
+        return user;
     },
     
     /**
@@ -70,13 +74,13 @@ const userService = {
      * @returns {Promise<Object>} - Обновленный пользователь
      */
     async updateUser(id, userData) {
-        const { email, name, password, image } = userData;
+        const { email, username, password, image } = userData;
         
         return prismaClient.user.update({
             where: {id: parseInt(id)},
             data: {
                 email,
-                name,
+                username,
                 password,
                 image
             }
@@ -111,6 +115,66 @@ const userService = {
         
         // Проверяем, достаточно ли средств
         return currentBalance >= parseFloat(amount);
+    },
+
+    /**
+     * Инициализирует достижения для нового пользователя
+     * @param {number} userId - ID пользователя
+     */
+    async initUserAchievements(userId) {
+        try {
+            // Получаем все доступные достижения
+            const achievements = await prismaClient.achievement.findMany({
+                include: {
+                    criteria: true
+                }
+            });
+
+            // Для каждого достижения создаем запись UserAchievement и UserCriterionProgress
+            for (const achievement of achievements) {
+                // Создаем запись UserAchievement
+                const userAchievement = await prismaClient.userAchievement.create({
+                    data: {
+                        userId: userId,
+                        achievementId: achievement.id,
+                        status: 'IN_PROGRESS'
+                    }
+                });
+
+                // Для каждого критерия создаем запись UserCriterionProgress
+                for (const criterion of achievement.criteria) {
+                    await prismaClient.userCriterionProgress.create({
+                        data: {
+                            userAchievementId: userAchievement.id,
+                            criterionId: criterion.id,
+                            currentValue: 0,
+                            isCompleted: false
+                        }
+                    });
+                }
+            }
+
+            // Запускаем первичную проверку достижений
+            const { checkAllAchievements } = require('../utils/achievementCheckers');
+            await checkAllAchievements(userId);
+            
+            console.log(`Achievements initialized for user ID: ${userId}`);
+        } catch (error) {
+            console.error('Error initializing user achievements:', error);
+        }
+    },
+
+    /**
+     * Проверяет достижения пользователя
+     * @param {number} userId - ID пользователя
+     */
+    async checkUserAchievements(userId) {
+        try {
+            const { checkAllAchievements } = require('../utils/achievementCheckers');
+            await checkAllAchievements(userId);
+        } catch (error) {
+            console.error('Error checking user achievements:', error);
+        }
     },
 
     async getUserBalance(userId) {

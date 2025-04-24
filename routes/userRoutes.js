@@ -31,4 +31,7 @@ router.put('/:id', userController.updateUser);
 // Маршрут для удаления пользователя
 router.delete('/:id', userController.deleteUser);
 
+// Маршрут для получения достижений пользователя
+router.get('/:userId/achievements', userController.getUserAchievements);
+
 module.exports = router;

@@ -2,6 +2,7 @@ const userService = require('../services/userService');
 const prisma = require('@prisma/client');
 const { PrismaClient } = prisma;
 const prismaClient = new PrismaClient();
+const { checkAllAchievements } = require('../utils/achievementCheckers');
 
 exports.getAllUsers = async (req, res) => {
     try {
@@ -76,6 +77,7 @@ exports.createUser = async (req, res) => {
         const newUser = await userService.createUser(userData);
         res.status(201).json(newUser);
     } catch (error) {
+        console.error('Error creating user:', error);
         res.status(500).json({ error: 'Error creating user' });
     }
 };
@@ -98,5 +100,35 @@ exports.deleteUser = async (req, res) => {
         res.status(204).send();
     } catch (error) {
         res.status(500).json({ error: 'Error deleting user' });
+    }
+};
+
+/**
+ * Получение всех достижений пользователя
+ */
+exports.getUserAchievements = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        // Перед получением достижений, обновляем их статус
+        await userService.checkUserAchievements(parseInt(userId));
+        
+        // Получаем достижения пользователя
+        const userAchievements = await prismaClient.userAchievement.findMany({
+            where: { userId: parseInt(userId) },
+            include: {
+                achievement: true,
+                progress: {
+                    include: {
+                        criterion: true
+                    }
+                }
+            }
+        });
+        
+        res.status(200).json(userAchievements);
+    } catch (error) {
+        console.error('Error getting user achievements:', error);
+        res.status(500).json({ error: 'Error getting user achievements' });
     }
 };
