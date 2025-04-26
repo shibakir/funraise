@@ -39,7 +39,7 @@ const eventService = {
             sortBy = 'createdAt', 
             sortOrder = 'desc' 
         } = options;
-        
+
         const skip = (page - 1) * limit;
         
         // Создаем условия поиска
@@ -158,11 +158,10 @@ const eventService = {
      * Создание нового события
      * @param {Object} eventData - Данные события
      * @param {Object} imageFile - Файл изображения
-     * @param {number} userId - ID пользователя-создателя
      * @returns {Promise<Object>} - Созданное событие
      */
-    async createEvent(eventData, imageFile, userId) {
-        const { name, description, type, recipientId, endConditions } = eventData;
+    async createEvent(eventData, imageFile) {
+        const { name, description, type, creatorId, recipientId, endConditions } = eventData;
         
         // Проверка валидации данных
         if ((type === 'DONATION' || type === 'FUNDRAISING') && !recipientId) {
@@ -196,7 +195,7 @@ const eventService = {
             description,
             status: 'active',
             type,
-            userId,
+            userId: parseInt(creatorId),
             imageUrl
         };
         
@@ -264,65 +263,14 @@ const eventService = {
             }
         });
     },
-    
-    /**
-     * Обновление события
-     * @param {number} id - ID события
-     * @param {Object} eventData - Обновляемые данные
-     * @param {number} userId - ID пользователя, выполняющего обновление
-     * @returns {Promise<Object>} - Обновленное событие
-     */
-    async updateEvent(id, eventData, userId) {
-        const { name, description, status, type, bankAmount, recipientId } = eventData;
-        
-        // Проверка на существование и права доступа
-        const event = await prismaClient.event.findUnique({
-            where: { id: parseInt(id) },
-            include: {
-                endConditions: true
-            }
-        });
-        
-        if (!event) {
-            throw new Error('Event not found');
-        }
-        
-        if (event.userId !== userId) {
-            throw new Error('You do not have permission to update this event');
-        }
-        
-        // Проверка типа и получателя
-        if ((type === 'DONATION' || type === 'FUNDRAISING') && !recipientId) {
-            throw new Error('For types DONATION and FUNDRAISING, you must specify the recipient of the funds (recipientId)');
-        }
-        
-        const updateData = {
-            name,
-            description,
-            status,
-            type,
-            bankAmount
-        };
-        
-        // Обработка recipientId в зависимости от типа
-        if (type === 'DONATION' || type === 'FUNDRAISING') {
-            updateData.recipientId = parseInt(recipientId);
-        } else if (type === 'JACKPOT') {
-            updateData.recipientId = null;
-        }
-        
-        return await prismaClient.event.update({
-            where: { id: parseInt(id) },
-            data: updateData,
-        });
-    },
-    
+
     /**
      * Удаление события
      * @param {number} id - ID события
      * @param {number} userId - ID пользователя, выполняющего удаление
      * @returns {Promise<void>}
      */
+    /*
     async deleteEvent(id, userId) {
         // Проверка на существование и права доступа
         const event = await prismaClient.event.findUnique({
@@ -341,6 +289,7 @@ const eventService = {
             where: { id: parseInt(id) }
         });
     },
+    */
     
     /**
      * Получение событий пользователя
@@ -448,8 +397,8 @@ const eventService = {
      * @param {number} eventId - ID события
      * @returns {Promise<number>} - Текущая сумма в банке
      */
-    async getEventBankAmount(eventId) {
-        // Используем агрегацию для подсчета суммы депозитов
+    async getEventStatus(eventId) {
+        // count all participations debt sum for the event
         const result = await prismaClient.participation.aggregate({
             where: { eventId: parseInt(eventId) },
             _sum: {
@@ -459,24 +408,21 @@ const eventService = {
                 id: true
             }
         });
-        
-        // Обновляем сумму в банке события, если она отличается от расчетной
-        /*
-        const event = await prismaClient.event.findUnique({
-            where: { id: parseInt(eventId) }
+
+        const eventStatus = await prismaClient.event.findUnique({
+            where: { id: parseInt(eventId) },
+            select: { 
+                status: true, 
+                type: true,
+                recipientId: true,
+            }
         });
-        
-        if (event && result._sum.deposit && event.bankAmount !== result._sum.deposit) {
-            await prismaClient.event.update({
-                where: { id: parseInt(eventId) },
-                data: { bankAmount: result._sum.deposit }
-            });
-        }
-        */
-        
+
         return {
             bankAmount: result._sum.deposit || 0,
-            participantsCount: result._count.id || 0
+            status: eventStatus.status || 'completed',
+            recipientId: eventStatus.recipientId || null,
+            type: eventStatus.type || null,
         };
     },
 };

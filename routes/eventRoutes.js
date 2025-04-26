@@ -38,7 +38,7 @@ router.get('/:id', eventController.getEventById);
 router.get('/:id/conditions', eventController.getEventEndConditions);
 
 // Маршрут для получения текущего банка события по ID события
-router.get('/:id/bank', eventController.getEventBankAmount);
+router.get('/:id/status', eventController.getEventStatus);
 
 // Маршрут для обновления события
 //router.put('/:id', eventController.updateEvent);

@@ -55,15 +55,11 @@ exports.getEventById = async (req, res) => {
 };
 
 exports.createEvent = async (req, res) => {
-    console.log('Request body:', req.body);
-    console.log('Request file:', req.file);
-
     const eventData = req.body;
     const image = req.file;
-    const userId = 1; // В реальном приложении должно быть req.user.id // TODO
 
     try {
-        const result = await eventService.createEvent(eventData, image, userId);
+        const result = await eventService.createEvent(eventData, image);
         res.status(201).json(result);
     } catch (error) {
         console.error('Error creating event:', error);
@@ -108,26 +104,6 @@ exports.updateEvent = async (req, res) => {
     }
 };
 
-exports.deleteEvent = async (req, res) => {
-    const { id } = req.params;
-    const userId = req.user.id; // Получаем ID пользователя из токена JWT
-
-    try {
-        await eventService.deleteEvent(id, userId);
-        res.status(204).send();
-    } catch (error) {
-        console.error('Error deleting event:', error);
-        
-        if (error.message === 'Event not found') {
-            return res.status(404).json({ error: 'Event not found' });
-        } else if (error.message === 'You do not have permission to delete this event') {
-            return res.status(403).json({ error: error.message });
-        }
-        
-        res.status(500).json({ error: 'Error deleting event' });
-    }
-};
-
 exports.getUserEvents = async (req, res) => {
     const userId = req.params.userId;
     const { limit, type } = req.query;
@@ -165,15 +141,15 @@ exports.getEventEndConditions = async (req, res) => {
 };
 
 /**
- * Получение текущего банка события по ID события
+ * Получение текущего статуса события по ID события
  */
-exports.getEventBankAmount = async (req, res) => {
+exports.getEventStatus = async (req, res) => {
     const { id } = req.params;
     try {
-        const bankInfo = await eventService.getEventBankAmount(id);
-        res.status(200).json(bankInfo);
+        const statusInfo = await eventService.getEventStatus(id);
+        res.status(200).json(statusInfo);
     } catch (error) {
-        console.error('Error getting event bank amount:', error);
-        res.status(500).json({ error: 'Error getting event bank amount' });
+        console.error('Error getting event status:', error);
+        res.status(500).json({ error: 'Error getting event status' });
     }
 };

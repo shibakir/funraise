@@ -37,11 +37,11 @@ const bankConditionChecker = {
                 const bankConditions = endCondition.conditions.filter(
                     condition => condition.parameterName === "bank" && !condition.isCompleted
                 );
-                
+
                 // Проверяем каждое условие "bank"
                 for (const condition of bankConditions) {
                     const conditionValue = parseFloat(condition.value);
-                    
+                
                     // Используем вспомогательную функцию для сравнения значений
                     const isConditionMet = compareValues(condition.operator, totalBank, conditionValue);
                     
@@ -60,7 +60,7 @@ const bankConditionChecker = {
                 });
                 
                 const allCompleted = allConditions.every(c => c.isCompleted);
-                
+
                 // Если все условия выполнены, обновляем статус EventEndCondition
                 if (allCompleted) {
                     await prisma.eventEndCondition.update({
@@ -74,7 +74,7 @@ const bankConditionChecker = {
             await checkAndUpdateEventStatus(eventId);
             
         } catch (error) {
-            console.error(`Ошибка при проверке условий по банку: ${error.message}`);
+            console.error(`Error checking bank conditions: ${error.message}`);
         }
     }
 };
