@@ -66,13 +66,12 @@ const transactionController = {
     async createTransaction(req, res) {
         let userId;
         try {
-
             console.log(req.body);
 
-            let {id, amount} = req.body;
+            let {id, amount, type} = req.body;
 
-            if (!id || !amount) {
-                return res.status(400).json({message: 'User id and amount is required'});
+            if (!id || !amount || !type) {
+                return res.status(400).json({message: 'User id, amount and type are required'});
             }
 
             // Используем ID пользователя из токена
@@ -82,7 +81,8 @@ const transactionController = {
 
             const newTransaction = await transactionService.createTransaction({
                 amount,
-                userId
+                userId,
+                type
             });
 
             console.log(newTransaction);

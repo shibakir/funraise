@@ -112,7 +112,8 @@ const participationService = {
             await prisma.transaction.create({
                 data: {
                     amount: -Math.abs(parseFloat(deposit)),
-                    userId: parseInt(userId)
+                    userId: parseInt(userId),
+                    type: 'OUTCOME_EVENT'
                 }
             });
             return newParticipation;
@@ -184,7 +185,8 @@ const participationService = {
             await prisma.transaction.create({
                 data: {
                     amount: -Math.abs(parseFloat(deposit)),
-                    userId: participation.userId
+                    userId: participation.userId,
+                    type: 'OUTCOME_EVENT'
                 }
             });
             return updatedParticipation;

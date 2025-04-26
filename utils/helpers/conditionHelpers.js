@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const { transferFundsAfterEvent } = require('./eventHelpers');
 
 /**
  * Сравнивает два значения на основе указанного оператора
@@ -33,20 +34,20 @@ const compareValues = (operator, actualValue, conditionValue) => {
 };
 
 /**
- * Проверяет условия окончания события и обновляет статус события при необходимости
- * @param {number} eventId - ID события
- * @returns {Promise<boolean>} - true, если все условия выполнены и статус события обновлен
+ * Checks event end conditions and updates event status if necessary
+ * @param {number} eventId - ID of event
+ * @returns {Promise<boolean>} - true, if all conditions are met and event status is updated
  */
 const checkAndUpdateEventStatus = async (eventId) => {
     try {
-        // Проверяем, что ID события передан и является числом
+        // Check if event ID is passed and is a number
         if (!eventId || isNaN(parseInt(eventId))) {
             throw new Error('Invalid event ID.');
         }
         
         const parsedEventId = parseInt(eventId);
 
-        // Получаем событие
+        // Get event
         const event = await prisma.event.findUnique({
             where: { id: parsedEventId }
         });
@@ -55,30 +56,31 @@ const checkAndUpdateEventStatus = async (eventId) => {
             throw new Error(`Event with ID ${parsedEventId} not found`);
         }
         
-        // Проверяем, находится ли событие все еще в активном состоянии
-        //if (event.status !== 'active') {
-        //    return false;
-        //}
-        
-        // Получаем все группы условий окончания для события
+        // Get all groups of end conditions for event
         const eventEndConditions = await prisma.eventEndCondition.findMany({
             where: { eventId: parsedEventId }
         });
         
-        // Если у события нет условий окончания, просто выходим
+        // If event has no end conditions, just return
         if (eventEndConditions.length === 0) {
             return false;
         }
         
-        // Проверяем, есть ли хотя бы одна полностью выполненная группа условий
+        // Check if there is at least one fully completed group of conditions
         const completedGroup = eventEndConditions.find(group => group.isCompleted);
         
         if (completedGroup) {
-            // Обновляем статус события на COMPLETED
-            await prisma.event.update({
-                where: { id: parsedEventId },
-                data: { status: 'completed' }
+            // Execute all actions within a transaction
+            await prisma.$transaction(async (tx) => {
+                // Update event status to COMPLETED
+                await tx.event.update({
+                    where: { id: parsedEventId },
+                    data: { status: 'completed' }
+                });
             });
+            
+            // Call function to transfer funds after event completion
+            await transferFundsAfterEvent(parsedEventId);
             
             return true;
         }

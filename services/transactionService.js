@@ -44,7 +44,7 @@ const transactionService = {
      * @returns {Promise<Object>} - Созданная транзакция
      */
     async createTransaction(transactionData) {
-        const { amount, userId } = transactionData;
+        const { amount, userId, type } = transactionData;
         
         // Проверяем существование пользователя
         const user = await prismaClient.user.findUnique({ 
@@ -55,10 +55,17 @@ const transactionService = {
             throw new Error('User not found');
         }
         
+        // Проверяем, что тип транзакции допустимый
+        const validTypes = ['INCOME_BALANCE', 'OUTCOME_BALANCE', 'OUTCOME_EVENT', 'EVENT_WIN'];
+        if (!type || !validTypes.includes(type)) {
+            throw new Error('Invalid transaction type');
+        }
+        
         return prismaClient.transaction.create({
             data: {
                 amount: parseFloat(amount),
-                userId: parseInt(userId)
+                userId: parseInt(userId),
+                type
             },
             include: {
                 user: true
