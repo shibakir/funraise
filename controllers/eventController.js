@@ -5,11 +5,35 @@ dotenv.config();
 
 exports.getAllEvents = async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const userId = req.query.userId || null;
+        const { 
+            page = 1, 
+            limit = 10, 
+            userId = null,
+            query = '', 
+            types = [], 
+            minProgress = 0,
+            maxProgress = 100,
+            sortBy = 'createdAt',
+            sortOrder = 'desc'
+        } = req.query;
         
-        const events = await eventService.getAllEvents({ page, limit, userId });
+        // Преобразуем типы из строки в массив, если они переданы как строка
+        const eventTypes = Array.isArray(types) 
+            ? types 
+            : types ? [types] : [];
+        
+        const events = await eventService.getAllEvents({ 
+            page: parseInt(page), 
+            limit: parseInt(limit), 
+            userId,
+            query, 
+            types: eventTypes,
+            minProgress: parseInt(minProgress),
+            maxProgress: parseInt(maxProgress),
+            sortBy, 
+            sortOrder 
+        });
+        
         res.status(200).json(events);
     } catch (error) {
         console.error('Error getting events:', error);
@@ -36,7 +60,7 @@ exports.createEvent = async (req, res) => {
 
     const eventData = req.body;
     const image = req.file;
-    const userId = 1; // В реальном приложении должно быть req.user.id
+    const userId = 1; // В реальном приложении должно быть req.user.id // TODO
 
     try {
         const result = await eventService.createEvent(eventData, image, userId);
@@ -106,14 +130,14 @@ exports.deleteEvent = async (req, res) => {
 
 exports.getUserEvents = async (req, res) => {
     const userId = req.params.userId;
-    const { limit } = req.query;
+    const { limit, type } = req.query;
     
     if (!userId) {
         return res.status(400).json({ error: 'User ID is required' });
     }
 
     try {
-        const events = await eventService.getUserEvents(userId, { limit });
+        const events = await eventService.getUserEvents(userId, { limit, type });
         res.status(200).json(events);
     } catch (error) {
         console.error('Error getting user events:', error);

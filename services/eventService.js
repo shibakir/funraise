@@ -14,15 +14,32 @@ const {checkAndUpdateEventStatus} = require("../utils/helpers/conditionHelpers")
  */
 const eventService = {
     /**
-     * Получение всех событий
+     * Получение всех событий с поддержкой поиска, фильтрации и сортировки
      * @param {Object} options - Опции запроса
      * @param {number} options.page - Номер страницы
      * @param {number} options.limit - Количество элементов на странице
      * @param {string|null} options.userId - ID пользователя, если указан, исключаем его события из выборки
+     * @param {string} options.query - Поисковый запрос (по названию)
+     * @param {Array} options.types - Типы событий для фильтрации
+     * @param {number} options.minProgress - Минимальный прогресс
+     * @param {number} options.maxProgress - Максимальный прогресс
+     * @param {string} options.sortBy - Поле для сортировки (name, createdAt, progress)
+     * @param {string} options.sortOrder - Порядок сортировки (asc, desc)
      * @returns {Promise<Array>} - Массив событий с базовой информацией и прогрессом условий
      */
     async getAllEvents(options = {}) {
-        const { page = 1, limit = 10, userId = null } = options;
+        const { 
+            page = 1, 
+            limit = 10, 
+            userId = null,
+            query = '', 
+            types = [],
+            minProgress = 0,
+            maxProgress = 100,
+            sortBy = 'createdAt', 
+            sortOrder = 'desc' 
+        } = options;
+        
         const skip = (page - 1) * limit;
         
         // Создаем условия поиска
@@ -35,6 +52,23 @@ const eventService = {
             };
         }
         
+        // Добавляем поиск по названию
+        if (query) {
+            whereCondition.name = {
+                contains: query
+            };
+        }
+        
+        // Фильтр по типам событий, если указаны
+        if (types.length > 0) {
+            whereCondition.type = {
+                in: types
+            };
+        }
+        
+        // Определяем поле сортировки для Prisma (для "progress" будем сортировать на стороне приложения)
+        const orderByField = sortBy === 'progress' ? 'createdAt' : sortBy;
+        
         const events = await prismaClient.event.findMany({
             where: whereCondition,
             select: {
@@ -42,12 +76,14 @@ const eventService = {
                 name: true,
                 description: true,
                 imageUrl: true,
-                status: true
+                status: true,
+                type: true,
+                createdAt: true
             },
             skip,
             take: limit,
             orderBy: {
-                createdAt: 'desc'
+                [orderByField]: sortOrder
             }
         });
 
@@ -55,14 +91,37 @@ const eventService = {
         const eventsWithProgress = await Promise.all(
             events.map(async (event) => {
                 const progress = await calculateEndConditionsProgress(event.id);
+                const avgProgress = progress.length > 0 
+                    ? Math.round(progress.reduce((a, b) => a + b, 0) / progress.length) 
+                    : 0;
+                
                 return {
                     ...event,
-                    conditionsProgress: progress
+                    conditionsProgress: progress,
+                    avgProgress
                 };
             })
         );
+        
+        // Фильтруем события по прогрессу
+        const filteredEvents = eventsWithProgress.filter(event => {
+            const avgProgress = event.avgProgress;
+            return avgProgress >= minProgress && avgProgress <= maxProgress;
+        });
+        
+        // Сортировка по прогрессу, если требуется
+        if (sortBy === 'progress') {
+            filteredEvents.sort((a, b) => {
+                const progressA = a.avgProgress || 0;
+                const progressB = b.avgProgress || 0;
+                
+                return sortOrder === 'asc' 
+                    ? progressA - progressB 
+                    : progressB - progressA;
+            });
+        }
 
-        return eventsWithProgress;
+        return filteredEvents;
     },
     
     /**
@@ -288,27 +347,61 @@ const eventService = {
      * @param {number} userId - ID пользователя
      * @param {Object} options - Опции запроса
      * @param {number} options.limit - Лимит количества возвращаемых событий
+     * @param {string} options.type - Тип событий ('created' или 'participating')
      * @returns {Promise<Array>} - Массив событий пользователя с базовой информацией и прогрессом условий
      */
     async getUserEvents(userId, options = {}) {
-        const { limit = 10 } = options;
+        const { limit = 10, type } = options;
+        let events = [];
         
-        const events = await prismaClient.event.findMany({
-            where: {
-                userId: parseInt(userId)
-            },
-            orderBy: {
-                createdAt: 'desc'
-            },
-            take: parseInt(limit),
-            select: {
-                id: true,
-                name: true,
-                description: true,
-                imageUrl: true,
-                status: true
-            }
-        });
+        if (!type || type === 'created') {
+            // Получаем события, созданные пользователем
+            events = await prismaClient.event.findMany({
+                where: {
+                    userId: parseInt(userId)
+                },
+                orderBy: {
+                    createdAt: 'desc'
+                },
+                take: parseInt(limit),
+                select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    imageUrl: true,
+                    status: true,
+                    type: true,
+                    createdAt: true,
+                }
+            });
+        } else if (type === 'participating') {
+            // Получаем события, в которых пользователь участвует
+            const participations = await prismaClient.participation.findMany({
+                where: {
+                    userId: parseInt(userId)
+                },
+                orderBy: {
+                    createdAt: 'desc'
+                },
+                take: parseInt(limit),
+                include: {
+                    event: {
+                        select: {
+                            id: true,
+                            name: true,
+                            description: true,
+                            imageUrl: true,
+                            status: true,
+                            type: true,
+                            createdAt: true,
+                        }
+                    }
+                }
+            });
+            
+            // Преобразуем результат, чтобы получить массив событий
+            events = participations.map(p => p.event);
+        }
 
         // Для каждого события получаем прогресс выполнения условий
         const eventsWithProgress = await Promise.all(
@@ -385,7 +478,7 @@ const eventService = {
             bankAmount: result._sum.deposit || 0,
             participantsCount: result._count.id || 0
         };
-    }
+    },
 };
 
 module.exports = eventService; 

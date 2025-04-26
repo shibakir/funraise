@@ -64,27 +64,32 @@ const transactionController = {
      * @returns {Promise<void>}
      */
     async createTransaction(req, res) {
+        let userId;
         try {
-            let { userId, amount } = req.body;
 
-            if (!userId || !amount) {
-                return res.status(400).json({ message: 'User id and amount is required' });
-            }
-            if (!Number.isInteger(Number(userId)) || !Number.isInteger(Number(amount))) {
-                return res.status(400).json({ message: 'User id or amount is invalid' });
+            console.log(req.body);
+
+            let {id, amount} = req.body;
+
+            if (!id || !amount) {
+                return res.status(400).json({message: 'User id and amount is required'});
             }
 
             // Используем ID пользователя из токена
-            userId = parseInt(userId, 10);
-            
+            userId = parseInt(id, 10);
+
+            console.log(userId);
+
             const newTransaction = await transactionService.createTransaction({
                 amount,
                 userId
             });
-            
+
+            console.log(newTransaction);
+
             res.status(201).json(newTransaction);
         } catch (error) {
-            res.status(400).json({ message: error.message });
+            res.status(400).json({message: error.message});
         }
     }
 };

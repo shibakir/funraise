@@ -11,7 +11,7 @@ const { authenticateToken } = require('../middleware/authMiddleware');
 router.get('/', userController.getAllUsers);
 
 // Маршрут для получения пользователя по ID
-router.get('/:id', userController.getUserById);
+router.get('/:userId', userController.getUserById);
 
 // Маршрут для получения событий пользователя
 router.get('/:userId/events', eventController.getUserEvents);

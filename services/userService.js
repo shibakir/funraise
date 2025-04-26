@@ -22,27 +22,41 @@ const userService = {
             };
         }
         
-        return await prismaClient.user.findMany({
+        return prismaClient.user.findMany({
             where: whereCondition,
-            select: { id: true, username: true, image: true }
+            select: {id: true, username: true, image: true}
         });
     },
     
     /**
      * Получение пользователя по ID
-     * @param {number} id - ID пользователя
+     * @param {number} userId - ID пользователя
      * @returns {Promise<Object>} - Данные пользователя
      */
-    async getUserById(id) {
+    async getUserById(userId) {
         const user = await prismaClient.user.findUnique({
-            where: { id: parseInt(id) }
+            where: { id: parseInt(userId) },
+            select: {
+                id: true,
+                username: true,
+                image: true,
+                createdAt: true
+            }
         });
         
         if (!user) {
             throw new Error('User not found');
         }
-        
-        return user;
+
+        // Get user Balance
+        const balance = await userService.getUserBalance(userId);
+
+        const userProfile = {
+            user,
+            balance,
+        };
+
+        return userProfile;
     },
     
     /**
