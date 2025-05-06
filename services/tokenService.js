@@ -15,10 +15,6 @@ class TokenService {
         };
     }
 
-    validateTokens(tokens) {
-
-    }
-
     validateAccessToken(accessToken) {
         try {
             const userData = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET);

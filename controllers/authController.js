@@ -2,7 +2,7 @@ const authService = require('../services/authService');
 const {validationResult} = require('express-validator');
 const apiError = require('../exceptions/apiError');
 
-class AuthController {
+class authController {
 
     async login (req, res, next) {
         try {
@@ -11,7 +11,6 @@ class AuthController {
 
             res.cookie('refreshToken', userData.refreshToken, {maxAge: 15*24*60*60*1000, httpOnly: true})
             return res.json(userData)
-
         }  catch (error) {
             next(error);
         }
@@ -64,12 +63,8 @@ class AuthController {
         try {
             const {refreshToken} = req.cookies;
 
-            console.log(refreshToken);
-
-
             const userData = await authService.refresh(refreshToken);
             res.cookie('refreshToken', userData.refreshToken, {maxAge: 15*24*60*60*1000, httpOnly: true})
-
             return res.json(userData)
 
         } catch (error) {
@@ -78,5 +73,5 @@ class AuthController {
     }
 }
 
-module.exports = new AuthController();
+module.exports = new authController();
 

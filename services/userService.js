@@ -1,10 +1,9 @@
 const prisma = require('@prisma/client');
 const { PrismaClient } = prisma;
 const prismaClient = new PrismaClient();
+const { checkAllAchievements } = require('../utils/achievementCheckers');
+const apiError = require('../exceptions/apiError');
 
-/**
- * Сервис для работы с пользователями
- */
 const userService = {
     /**
      * Получение списка всех пользователей с возможностью поиска
@@ -58,29 +57,6 @@ const userService = {
 
         return userProfile;
     },
-    
-    /**
-     * Создание нового пользователя
-     * @param {Object} userData - Данные пользователя
-     * @returns {Promise<Object>} - Созданный пользователь
-     */
-    async createUser(userData) {
-        const { email, username, password, activationLink } = userData;
-        
-        const user = await prismaClient.user.create({
-            data: {
-                email,
-                username,
-                password,
-                activationLink
-            }
-        });
-
-        // Инициализируем достижения для нового пользователя
-        await this.initUserAchievements(user.id);
-
-        return user;
-    },
 
     async updateUser(id, userData) {
         const { email, username, password, image } = userData;
@@ -93,12 +69,6 @@ const userService = {
                 password,
                 image
             }
-        });
-    },
-
-    async deleteUser(id) {
-        await prismaClient.user.delete({
-            where: { id: parseInt(id) }
         });
     },
 
@@ -162,22 +132,46 @@ const userService = {
         }
     },
 
+    async getUserAchievements(id) {
+        try {
+            const userAchievements = await prismaClient.userAchievement.findMany({
+                where: { userId: id },
+                include: {
+                    achievement: true,
+                    progress: {
+                        include: {
+                            criterion: true
+                        }
+                    }
+                }
+            });
+            return userAchievements;
+        } catch (error) {
+            throw apiError.InternalServerError('Error getting user achievements');
+        }
+    },
+
     /**
      * Проверяет достижения пользователя
-     * @param {number} userId - ID пользователя
+     * @param {number} id - ID пользователя
      */
-    async checkUserAchievements(userId) {
+    async checkUserAchievements(id) {
         try {
-            const { checkAllAchievements } = require('../utils/achievementCheckers');
-            await checkAllAchievements(userId);
+            const user = await prismaClient.user.findUnique({
+                where: { id }
+            });
+            if(!user) {
+                return;
+            }
+            await checkAllAchievements(id);
         } catch (error) {
             console.error('Error checking user achievements:', error);
         }
     },
 
-    async getUserBalance(userId) {
+    async getUserBalance(id) {
         const transactions = await prismaClient.transaction.findMany({
-            where: { userId: parseInt(userId) }
+            where: { id }
         });
         const currentBalance = transactions.reduce((sum, transaction) => sum + transaction.amount, 0);
         return currentBalance;

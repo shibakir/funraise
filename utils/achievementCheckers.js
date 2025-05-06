@@ -7,15 +7,15 @@ const prisma = new PrismaClient();
 const achievementCheckers = {
   /**
    * Проверяет достижение "Наибольший банк" - накопление определенной суммы
-   * @param {number} userId - ID пользователя
+   * @param {number} id - ID пользователя
    * @param {number} criterionId - ID критерия
    * @param {number} criteriaValue - Требуемая сумма
    * @returns {Promise<boolean>} - Выполнен ли критерий
    */
-  async checkBiggestBank(userId, criterionId, criteriaValue) {
+  async checkBiggestBank(id, criterionId, criteriaValue) {
     // Получаем все транзакции пользователя
     const transactions = await prisma.transaction.findMany({
-      where: { userId }
+      where: { userId: id }
     });
     
     // Считаем текущий баланс
@@ -25,9 +25,9 @@ const achievementCheckers = {
     const isCompleted = currentBalance >= criteriaValue;
     
     if (isCompleted) {
-      await updateCriterionProgress(userId, criterionId, currentBalance, true);
+      await updateCriterionProgress(id, criterionId, currentBalance, true);
     } else {
-      await updateCriterionProgress(userId, criterionId, currentBalance, false);
+      await updateCriterionProgress(id, criterionId, currentBalance, false);
     }
     
     return isCompleted;
@@ -35,16 +35,16 @@ const achievementCheckers = {
   
   /**
    * Проверяет достижение "Одновременное участие" - участие в нескольких событиях одновременно
-   * @param {number} userId - ID пользователя
+   * @param {number} id - ID пользователя
    * @param {number} criterionId - ID критерия
    * @param {number} criteriaValue - Требуемое количество одновременных событий
    * @returns {Promise<boolean>} - Выполнен ли критерий
    */
-  async checkSimultaneousParticipation(userId, criterionId, criteriaValue) {
+  async checkSimultaneousParticipation(id, criterionId, criteriaValue) {
     // Получаем текущие активные участия пользователя
     const activeParticipations = await prisma.participation.findMany({
       where: {
-        userId,
+        userId: id,
         event: {
           status: 'ACTIVE' // Предполагается, что у событий есть статус ACTIVE
         }
@@ -55,9 +55,9 @@ const achievementCheckers = {
     const isCompleted = currentCount >= criteriaValue;
     
     if (isCompleted) {
-      await updateCriterionProgress(userId, criterionId, currentCount, true);
+      await updateCriterionProgress(id, criterionId, currentCount, true);
     } else {
-      await updateCriterionProgress(userId, criterionId, currentCount, false);
+      await updateCriterionProgress(id, criterionId, currentCount, false);
     }
     
     return isCompleted;
@@ -65,15 +65,15 @@ const achievementCheckers = {
   
   /**
    * Проверяет достижение "Ветеран платформы" - время с момента регистрации
-   * @param {number} userId - ID пользователя
+   * @param {number} id - ID пользователя
    * @param {number} criterionId - ID критерия
    * @param {number} criteriaValue - Требуемое количество дней
    * @returns {Promise<boolean>} - Выполнен ли критерий
    */
-  async checkPlatformVeteran(userId, criterionId, criteriaValue) {
+  async checkPlatformVeteran(id, criterionId, criteriaValue) {
     // Получаем информацию о пользователе
     const user = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id }
     });
     
     if (!user) return false;
@@ -88,9 +88,9 @@ const achievementCheckers = {
     const isCompleted = diffDays >= criteriaValue;
     
     if (isCompleted) {
-      await updateCriterionProgress(userId, criterionId, diffDays, true);
+      await updateCriterionProgress(id, criterionId, diffDays, true);
     } else {
-      await updateCriterionProgress(userId, criterionId, diffDays, false);
+      await updateCriterionProgress(id, criterionId, diffDays, false);
     }
     
     return isCompleted;
@@ -98,25 +98,25 @@ const achievementCheckers = {
   
   /**
    * Проверяет достижение "Количество пожертвований" - сколько раз пользователь делал пожертвования
-   * @param {number} userId - ID пользователя
+   * @param {number} id - ID пользователя
    * @param {number} criterionId - ID критерия
    * @param {number} criteriaValue - Требуемое количество пожертвований
    * @returns {Promise<boolean>} - Выполнен ли критерий
    */
-  async checkDonationsCount(userId, criterionId, criteriaValue) {
+  async checkDonationsCount(id, criterionId, criteriaValue) {
     // Получаем участия пользователя в событиях типа DONATION
     const donations = await prisma.participation.count({
       where: {
-        userId,
+        userId: id,
       }
     });
     
     const isCompleted = donations >= criteriaValue;
     
     if (isCompleted) {
-      await updateCriterionProgress(userId, criterionId, donations, true);
+      await updateCriterionProgress(id, criterionId, donations, true);
     } else {
-      await updateCriterionProgress(userId, criterionId, donations, false);
+      await updateCriterionProgress(id, criterionId, donations, false);
     }
     
     return isCompleted;
@@ -124,16 +124,16 @@ const achievementCheckers = {
   
   /**
    * Проверяет достижение "Сумма пожертвований" - общая сумма пожертвований
-   * @param {number} userId - ID пользователя
+   * @param {number} id - ID пользователя
    * @param {number} criterionId - ID критерия
    * @param {number} criteriaValue - Требуемая сумма пожертвований
    * @returns {Promise<boolean>} - Выполнен ли критерий
    */
-  async checkDonationsSum(userId, criterionId, criteriaValue) {
+  async checkDonationsSum(id, criterionId, criteriaValue) {
     // Получаем участия пользователя в событиях типа DONATION
     const donations = await prisma.participation.findMany({
       where: {
-        userId,
+        userId: id,
       }
     });
     
@@ -143,9 +143,9 @@ const achievementCheckers = {
     const isCompleted = totalDonations >= criteriaValue;
     
     if (isCompleted) {
-      await updateCriterionProgress(userId, criterionId, totalDonations, true);
+      await updateCriterionProgress(id, criterionId, totalDonations, true);
     } else {
-      await updateCriterionProgress(userId, criterionId, totalDonations, false);
+      await updateCriterionProgress(id, criterionId, totalDonations, false);
     }
     
     return isCompleted;
@@ -153,19 +153,19 @@ const achievementCheckers = {
   
   /**
    * Проверяет достижение "Серия дней" - посещение платформы несколько дней подряд
-   * @param {number} userId - ID пользователя
+   * @param {number} id - ID пользователя
    * @param {number} criterionId - ID критерия
    * @param {number} criteriaValue - Требуемое количество дней подряд
    * @returns {Promise<boolean>} - Выполнен ли критерий
    */
-  async checkDayStreak(userId, criterionId, criteriaValue) {
+  async checkDayStreak(id, criterionId, criteriaValue) {
     // Для этой проверки потребуется дополнительная логика в приложении,
     // которая будет отслеживать дни активности пользователя
     // Здесь представлена упрощенная версия
     
     // Предположим, что у нас есть таблица или поле в пользователе, которое хранит текущую серию дней
     const user = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id }
     });
     
     // TODO: тут нужно посмотреть все отрицательные транзакции пользователя по дате и взять все создания ивентов по дате
@@ -177,9 +177,9 @@ const achievementCheckers = {
     const isCompleted = currentStreak >= criteriaValue;
     
     if (isCompleted) {
-      await updateCriterionProgress(userId, criterionId, currentStreak, true);
+      await updateCriterionProgress(id, criterionId, currentStreak, true);
     } else {
-      await updateCriterionProgress(userId, criterionId, currentStreak, false);
+      await updateCriterionProgress(id, criterionId, currentStreak, false);
     }
     
     return isCompleted;
@@ -188,12 +188,12 @@ const achievementCheckers = {
 
 /**
  * Вспомогательная функция для обновления прогресса пользователя по критерию
- * @param {number} userId - ID пользователя
+ * @param {number} id - ID пользователя
  * @param {number} criterionId - ID критерия
  * @param {number} currentValue - Текущее значение прогресса
  * @param {boolean} isCompleted - Выполнен ли критерий
  */
-async function updateCriterionProgress(userId, criterionId, currentValue, isCompleted) {
+async function updateCriterionProgress(id, criterionId, currentValue, isCompleted) {
   try {
     // Находим UserAchievement для данного пользователя и Achievement, к которому относится критерий
     const criterion = await prisma.achievementCriterion.findUnique({
@@ -207,7 +207,7 @@ async function updateCriterionProgress(userId, criterionId, currentValue, isComp
     let userAchievement = await prisma.userAchievement.findUnique({
       where: {
         userId_achievementId: {
-          userId,
+          userId: id,
           achievementId: criterion.achievementId
         }
       }
@@ -216,7 +216,7 @@ async function updateCriterionProgress(userId, criterionId, currentValue, isComp
     if (!userAchievement) {
       userAchievement = await prisma.userAchievement.create({
         data: {
-          userId,
+          userId: id,
           achievementId: criterion.achievementId,
           status: 'IN_PROGRESS'
         }
@@ -288,9 +288,9 @@ async function updateAchievementStatus(userAchievementId) {
 /**
  * Проверяет все критерии определенного типа для пользователя
  * @param {string} criteriaType - Тип критерия
- * @param {number} userId - ID пользователя
+ * @param {number} id - ID пользователя
  */
-async function checkCriteriaByType(criteriaType, userId) {
+async function checkCriteriaByType(criteriaType, id) {
   try {
     // Получаем все критерии данного типа
     const criteria = await prisma.achievementCriterion.findMany({
@@ -324,7 +324,7 @@ async function checkCriteriaByType(criteriaType, userId) {
     
     // Проверяем все критерии данного типа
     for (const criterion of criteria) {
-      await checkerFunction(userId, criterion.id, criterion.criteriaValue);
+      await checkerFunction(id, criterion.id, criterion.criteriaValue);
     }
   } catch (error) {
     console.error(`Error checking type of criterium ${criteriaType}:`, error);
@@ -333,9 +333,9 @@ async function checkCriteriaByType(criteriaType, userId) {
 
 /**
  * Проверяет все критерии для пользователя
- * @param {number} userId - ID пользователя
+ * @param {number} id - ID пользователя
  */
-async function checkAllAchievements(userId) {
+async function checkAllAchievements(id) {
   const criteriaTypes = [
     'BIGGEST_BANK',
     'SIMULTANEOUS_PARTICIPATION',
@@ -346,7 +346,7 @@ async function checkAllAchievements(userId) {
   ];
   
   for (const type of criteriaTypes) {
-    await checkCriteriaByType(type, userId);
+    await checkCriteriaByType(type, id);
   }
 }
 
