@@ -1,84 +1,79 @@
 const authService = require('../services/authService');
+const {validationResult} = require('express-validator');
+const apiError = require('../exceptions/apiError');
 
 class AuthController {
-    async login (req, res) {
+
+    async login (req, res, next) {
         try {
-            if (!req.body) {
-                return res.status(400).json({
-                    message: 'Request body is missing'
-                });
-            }
+            const {email, password} = req.body;
+            const userData = await authService.login(email, password);
 
-            const { email, username, password } = req.body;
+            res.cookie('refreshToken', userData.refreshToken, {maxAge: 15*24*60*60*1000, httpOnly: true})
+            return res.json(userData)
 
-            if (!password || (!email && !username)) {
-                return res.status(400).json({
-                    message: 'The "password" field and one of the "email" or "username" fields must be provided.',
-                });
-            }
-
-            try {
-                const { user, token } = await authService.authenticate({ email, username, password });
-                res.status(200).json({ user, token });
-            } catch (error) {
-                console.error('Authentication error:', error);
-
-                if (error.message === 'User not found') {
-                    return res.status(404).json({ message: 'User not found' });
-                } else if (error.message === 'Invalid password') {
-                    return res.status(401).json({ message: 'Invalid password' });
-                }
-
-                res.status(500).json({ message: 'Authentication error.' });
-            }
         }  catch (error) {
-
+            next(error);
         }
     };
 
-    async register (req, res) {
+    async register (req, res, next) {
         try {
+            const errors = validationResult(req);
+            if(!errors.isEmpty()) {
+                return next(apiError.BadRequestError(
+                "User registration data validation error",
+                        errors.array()
+                    )
+                );
+            }
             const { email, username, password } = req.body;
             const userData = await authService.register(email, username, password);
 
             res.cookie('refreshToken', userData.refreshToken, {maxAge: 15*24*60*60*1000, httpOnly: true})
-
-            return res.status(201).json(userData)
+            return res.json(userData)
 
         } catch (error) {
-            console.error('Registration error:', error);
-            
-            if (error.message === 'This username or email is already in use') {
-                return res.status(400).json({ message: error.message });
-            }
-            
-            return res.status(500).json({ message: 'Registration error' });
+            next(error);
         }
     };
 
-    async logout (req, res) {
+    async logout (req, res, next) {
         try {
+            const {refreshToken} = req.cookies;
 
+            const token = await authService.logout(refreshToken);
+            res.clearCookie('refreshToken');
+            return res.json(token);
         } catch (error) {
-
+            next(error);
         }
     }
 
-    async activate (req, res) {
+    async activate (req, res, next) {
         try {
             const activationLink = req.params.link;
             await authService.activate(activationLink);
             res.redirect('https://www.seznam.cz');
         } catch (error) {
-            console.error('Activation error:', error);
+            next(error);
         }
     }
 
-    async refresh (req, res) {
+    async refresh (req, res, next) {
         try {
+            const {refreshToken} = req.cookies;
+
+            console.log(refreshToken);
+
+
+            const userData = await authService.refresh(refreshToken);
+            res.cookie('refreshToken', userData.refreshToken, {maxAge: 15*24*60*60*1000, httpOnly: true})
+
+            return res.json(userData)
 
         } catch (error) {
-
+            next(error);
         }
     }
 }

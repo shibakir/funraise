@@ -22,7 +22,7 @@ Table User {
 
 Table Token {
   userId Int [pk]
-  refreshToken String [not null]
+  refreshToken String [unique, not null]
   createdAt DateTime [default: `now()`, not null]
 }
 

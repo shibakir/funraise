@@ -33,7 +33,7 @@ model User {
 
 model Token {
   userId       Int      @id
-  refreshToken String
+  refreshToken String   @unique
   createdAt    DateTime @default(now())
 }
 

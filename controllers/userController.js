@@ -2,7 +2,6 @@ const userService = require('../services/userService');
 const prisma = require('@prisma/client');
 const { PrismaClient } = prisma;
 const prismaClient = new PrismaClient();
-const { checkAllAchievements } = require('../utils/achievementCheckers');
 
 exports.getAllUsers = async (req, res) => {
     try {
@@ -15,16 +14,15 @@ exports.getAllUsers = async (req, res) => {
     }
 };  
 
-exports.getUserById = async (req, res) => {
-    const { userId } = req.params;
+exports.getUserById = async (req, res, next) => {
     try {
+        const { userId } = req.params;
         const user = await userService.getUserById(userId);
-        res.status(200).json(user);
+
+        return res.json(user);
+
     } catch (error) {
-        if (error.message === 'User not found') {
-            return res.status(404).json({ error: 'User not found' });
-        }
-        res.status(500).json({ error: 'Error getting user' });
+        next(error);
     }
 };
 

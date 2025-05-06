@@ -2,8 +2,9 @@ const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const multer = require('multer');
 const cookieParser = require("cookie-parser");
-
 const cron = require('node-cron');
+const errorMiddleware = require('./middleware/errorMiddleware');
+
 const { checkTimeConditions } = require('./utils/timeConditionChecker');
 
 const app = express();
@@ -34,12 +35,16 @@ const eventRoutes = require('./routes/eventRoutes');
 const participationRoutes = require('./routes/participationRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 
+
 app.use('/auth', authRoutes);
 
 app.use('/users', userRoutes);
 app.use('/events', eventRoutes);
 app.use('/participations', participationRoutes);
 app.use('/transactions', transactionRoutes);
+
+
+app.use(errorMiddleware);
 
 // Middleware для обработки 404 ошибок
 app.use((req, res, next) => {

@@ -1,24 +1,27 @@
-const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'some_secret_key';
+const apiError = require('../exceptions/apiError');
+const tokenService = require('../services/tokenService');
 
-
-exports.authenticateToken = (req, res, next) => {
-    // Получаем токен из заголовка Authorization
-
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-
-    if (!token) {
-        return res.status(401).json({ message: 'Token not provided' });
-    }
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(403).json({ message: 'Invalid or expired token' });
+module.exports = function authenticateToken (req, res, next) {
+    try {
+        const authHeader = req.headers.authorization;
+        if(!authHeader) {
+            return  next(apiError.UnauthorizedError("Unauthorized"));
         }
 
-        // Если токен верифицирован, сохраняем информацию о пользователе в req.user
-        req.user = user;
+        const accessToken = authHeader.split(' ')[1];
+
+        if(!accessToken) {
+            return  next(apiError.UnauthorizedError("Unauthorized"));
+        }
+
+        const userData = tokenService.validateAccessToken(accessToken);
+        if(!userData) {
+            return  next(apiError.UnauthorizedError("Unauthorized"));
+        }
+
+        req.user = userData;
         next();
-    });
+    } catch (error) {
+        next(apiError.UnauthorizedError("Unauthorized"));
+    }
 };

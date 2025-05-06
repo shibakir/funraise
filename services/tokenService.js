@@ -15,6 +15,28 @@ class TokenService {
         };
     }
 
+    validateTokens(tokens) {
+
+    }
+
+    validateAccessToken(accessToken) {
+        try {
+            const userData = jwt.verify(accessToken, process.env.JWT_ACCESS_SECRET);
+            return userData;
+        } catch (error) {
+            return null;
+        }
+    }
+
+    validateRefreshToken(refreshToken) {
+        try {
+            const userData = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+            return userData;
+        } catch (error) {
+            return null;
+        }
+    }
+
     // TODO: нужно учитывать возможность наличия нескольких токенов !!!
     async saveToken(userId, refreshToken) {
         const tokenData = await prismaClient.token.findUnique({
@@ -37,6 +59,19 @@ class TokenService {
         return token;
     }
 
+    async removeToken(refreshToken) {
+        const tokenData = await prismaClient.token.delete({
+            where: { refreshToken }
+        });
+        return tokenData;
+    }
+
+    async findToken(refreshToken) {
+        const tokenData = await prismaClient.token.findUnique({
+            where: { refreshToken }
+        });
+        return tokenData;
+    }
 }
 
 module.exports = new TokenService();

@@ -3,10 +3,10 @@ const { PrismaClient } = prisma;
 const prismaClient = new PrismaClient();
 const bcrypt = require('bcrypt');
 const uuid = require('uuid');
-const jwtUtils = require('../utils/jwtUtils');
 const userService = require('./userService');
 const mailService = require('../utils/auth/mailService');
 const tokenService = require('./tokenService');
+const apiError = require('../exceptions/apiError');
 
 class authService {
 
@@ -15,12 +15,12 @@ class authService {
         const existingUserByEmail = await prismaClient.user.findUnique({
             where: { email }
         });
-        const existingUserByUsername = await prismaClient.user.findUnique({
+         const existingUserByUsername = await prismaClient.user.findUnique({
             where: { username }
         });
 
         if (existingUserByEmail || existingUserByUsername) {
-            throw new Error('This username or email is already in use');
+            throw apiError.BadRequestError('This username or email is already in use');
         }
 
         // use hash
@@ -50,7 +50,7 @@ class authService {
             where: { activationLink }
         })
         if(!user) {
-            throw new Error('Bad activation link');
+            throw apiError.BadRequestError('Bad activation link');
         }
 
         await prismaClient.user.update({
@@ -59,40 +59,61 @@ class authService {
         });
     }
 
+    async login(email, password) {
 
-    async authenticate(credentials) {
-        const { email, username, password } = credentials;
-        
-        if (!password || (!email && !username)) {
-            throw new Error('Password and either email or username must be provided');
-        }
-        
-        // Поиск пользователя по email или username
-        const whereCondition = email ? { email } : { username };
         const user = await prismaClient.user.findUnique({
-            where: whereCondition,
+            where: { email }
         });
-        
-        // Если пользователь не найден
+
         if (!user) {
-            console.error("User not found: ", email || username, "")
-            throw new Error('User not found');
+            throw apiError.BadRequestError('User with this email was not found');
         }
+
+        const isPasswordEquals = await bcrypt.compare(password, user.password);
         
-        // Проверяем правильность пароля
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-        
-        if (!isPasswordValid) {
-            console.error("Invalid password: ", password, "")
-            throw new Error('Invalid password');
+        if (!isPasswordEquals) {
+            throw apiError.BadRequestError('Invalid password');
         }
-        
-        // Генерируем токен
-        const token = jwtUtils.generateToken(user);
-        
-        return { user, token };
+
+        const { password: _, ...userWithoutPassword } = user; // dto
+        const tokens = tokenService.generateTokens({...userWithoutPassword});
+        await tokenService.saveToken(userWithoutPassword.id, tokens.refreshToken);
+
+        return { ...tokens, user: userWithoutPassword};
     }
 
+    async logout(refreshToken) {
+
+        if(!refreshToken) {
+            return null;
+            //throw apiError.BadRequestError("Refresh token not provided for logout operation");
+        }
+
+        const token = await tokenService.removeToken(refreshToken);
+        return token;
+    }
+
+    async refresh(refreshToken) {
+        if(!refreshToken) {
+            throw apiError.UnauthorizedError('Refresh token is not provided');
+        }
+        const userData = tokenService.validateRefreshToken(refreshToken);
+        const tokenFromDb = await tokenService.findToken(refreshToken);
+
+        if(!userData || !tokenFromDb) {
+            throw apiError.UnauthorizedError('Invalid refresh token');
+        }
+
+        const user = await prismaClient.user.findUnique({
+            where: { id: userData.id },
+        });
+
+        const { password: _, ...userWithoutPassword } = user; // dto
+        const tokens = tokenService.generateTokens({...userWithoutPassword});
+        await tokenService.saveToken(userWithoutPassword.id, tokens.refreshToken);
+
+        return { ...tokens, user: userWithoutPassword};
+    }
 }
 
 module.exports = new authService();
