@@ -1,6 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const multer = require('multer');
+const cookieParser = require("cookie-parser");
 
 const cron = require('node-cron');
 const { checkTimeConditions } = require('./utils/timeConditionChecker');
@@ -18,6 +19,7 @@ const upload = multer({
 
 // middleware
 app.use(express.json());
+app.use(cookieParser());
 
 // Логирование всех запросов
 app.use((req, res, next) => {
@@ -33,6 +35,7 @@ const participationRoutes = require('./routes/participationRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 
 app.use('/auth', authRoutes);
+
 app.use('/users', userRoutes);
 app.use('/events', eventRoutes);
 app.use('/participations', participationRoutes);

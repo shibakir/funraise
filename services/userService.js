@@ -65,13 +65,14 @@ const userService = {
      * @returns {Promise<Object>} - Созданный пользователь
      */
     async createUser(userData) {
-        const { email, username, password } = userData;
+        const { email, username, password, activationLink } = userData;
         
         const user = await prismaClient.user.create({
             data: {
                 email,
                 username,
                 password,
+                activationLink
             }
         });
 
@@ -80,13 +81,7 @@ const userService = {
 
         return user;
     },
-    
-    /**
-     * Обновление данных пользователя
-     * @param {number} id - ID пользователя
-     * @param {Object} userData - Обновляемые данные
-     * @returns {Promise<Object>} - Обновленный пользователь
-     */
+
     async updateUser(id, userData) {
         const { email, username, password, image } = userData;
         
@@ -100,24 +95,13 @@ const userService = {
             }
         });
     },
-    
-    /**
-     * Удаление пользователя
-     * @param {number} id - ID пользователя
-     * @returns {Promise<void>}
-     */
+
     async deleteUser(id) {
         await prismaClient.user.delete({
             where: { id: parseInt(id) }
         });
     },
 
-    /**
-     * Проверка баланса пользователя
-     * @param {number} userId - ID пользователя
-     * @param {number} amount - Сумма для проверки
-     * @returns {Promise<boolean>} - Результат проверки
-     */
     async checkUserBalance(userId, amount) {
         // Получаем все транзакции пользователя
         const transactions = await prismaClient.transaction.findMany({
