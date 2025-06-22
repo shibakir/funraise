@@ -1,14 +1,5 @@
 const { makeExecutableSchema } = require('@graphql-tools/schema');
 const { gql } = require('graphql-tag');
-/*
-const eventResolvers = require('./resolver/eventResolvers');
-const userResolvers = require('./resolver/userResolvers');
-const participationResolvers = require('./resolver/participationResolvers');
-const subscriptionResolvers = require('./resolver/subscriptionResolvers');
-const achievementResolvers = require('./resolver/achievementResolvers');
-const authResolvers = require('./resolver/authResolvers');
-
- */
 
 const eventResolvers = require('./resolvers/eventResolvers');
 const userResolvers = require('./resolvers/userResolvers');

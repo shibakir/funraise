@@ -1,5 +1,6 @@
 const { Event, EventEndCondition, EndCondition } = require('../model');
 const { userService } = require('../service');
+const { EVENT_TYPES } = require('../constants/application');
 
 async function seedTestData() {
     try {
@@ -29,34 +30,34 @@ async function seedTestData() {
         const events = await Promise.all([
             // Event 1: DONATION type
             Event.create({
-                name: 'Help Children',
-                description: 'Charity event for children in need',
+                name: 'Support your Top streamer',
+                description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
                 bankAmount: 0,
                 status: 'IN_PROGRESS',
                 type: EVENT_TYPES.DONATION,
-                imageUrl: 'https://i.ebayimg.com/00/s/MTYwMFgxNTU0/z/YF8AAOSw64Fk7IKQ/$_57.JPG?set_id=880000500F',
+                imageUrl: 'https://www.reddit.com/media?url=https%3A%2F%2Fi.redd.it%2Fh8uvrr60ues71.png',
                 userId: users[0].id,
                 recipientId: users[1].id
             }),
             // Event 2: FUNDRAISING type
             Event.create({
                 name: 'School Fundraiser',
-                description: 'Raising funds for school equipment',
+                description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
                 bankAmount: 0,
                 status: 'IN_PROGRESS',
                 type: EVENT_TYPES.FUNDRAISING,
-                imageUrl: 'https://doc.smarty.cz/pic/7XVA300401-600-600.webp',
+                imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/7/7b/First_primary_school_building_in_Nigeria_in_Badagry%2C_Nigeria.jpg',
                 userId: users[1].id,
                 recipientId: users[2].id
             }),
             // Event 3: JACKPOT type
             Event.create({
-                name: 'Lucky Draw',
-                description: 'Win big prizes!',
+                name: 'London jackpot time!',
+                description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.',
                 bankAmount: 0,
                 status: 'IN_PROGRESS',
                 type: EVENT_TYPES.JACKPOT,
-                imageUrl: 'https://jablickar.cz/wp-content/uploads/2021/06/iPhone-2-1.jpeg',
+                imageUrl: 'https://upload.wikimedia.org/wikipedia/commons/1/17/Canary-wharf-one.jpg',
                 userId: users[2].id,
                 recipientId: users[0].id
             })

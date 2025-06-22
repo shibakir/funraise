@@ -22,6 +22,15 @@ app.use(express.urlencoded({ limit: '5mb', extended: true }));
 // HTTP GraphQL endpoint with auth middleware
 app.use('/graphql', graphqlAuthMiddleware, createGraphQLHandler());
 
+// Health check endpoint for Docker
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        service: 'funraise-api'
+    });
+});
+
 // Auth routes (only email activation)
 app.use('/', authRoutes);
 
@@ -51,7 +60,22 @@ const start = async () => {
         console.log('Initializing database...');
         await syncDatabase();
         console.log('Database synchronized successfully');
+
+
+
+        // Always clear database and run seeders
+        console.log('Clearing database and running seeders...');
+        const { runAllSeeders, seedProductionData, smartClearDatabase } = require('./seeder');
         
+        // Clear all data
+        await smartClearDatabase();
+        console.log('Database cleared');
+
+        // Run seeders with some test data & achievements
+        await runAllSeeders();
+
+        
+    
         // Create HTTP server
         const server = createServer(app);
         

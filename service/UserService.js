@@ -60,18 +60,8 @@ class UserService {
                 await mailService.sendActivationMail(data.email, activationUrl);
                 //console.log('Activation email sent successfully to:', data.email);
                 
-                // Log activation link in development mode for testing
-                if (process.env.NODE_ENV === 'development') {
-                    //console.log('Activation link for testing:', activationUrl);
-                }
             } catch (emailError) {
                 //console.error('Failed to send activation email:', emailError);
-                
-                // In development, still log the activation link even if email fails
-                if (process.env.NODE_ENV === 'development') {
-                    const activationUrl = `${process.env.FUNRAISE_APP_URL}/activate/${activationLink}`;
-                    //console.log('Activation link for testing (email failed):', activationUrl);
-                }
                 // Don't fail registration if email fails to send
             }
 
@@ -80,7 +70,7 @@ class UserService {
                 await initializeUser(user.id);
             } catch (achievementError) {
                 //console.error('Failed to initialize user achievements:', achievementError);
-                // don't fail if achievements initialization fails
+                // Don't fail if achievements initialization fails
             }
 
             return user;

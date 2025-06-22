@@ -4,12 +4,21 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node app.js",
     "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "reset-db": "node script/resetDb.js",
+    "seed": "node script/runSeeders.js",
+    "seed:achievements": "node script/runSeeders.js achievements",
+    "seed:testdata": "node script/runSeeders.js testdata",
+    "seed:prod": "node script/runSeeders.js production",
     "docs:generate": "graphdoc -e http://localhost:3000/graphql -o ./docs --force",
     "docs:serve": "npx http-server ./docs -p 8080 -o",
-    "docs": "npm run docs:generate && npm run docs:serve"
+    "docs": "npm run docs:generate && npm run docs:serve",
+    "docker:build": "docker build -t funraise-server .",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
   },
   "keywords": [],
   "author": "",
