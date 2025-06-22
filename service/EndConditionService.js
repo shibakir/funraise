@@ -1,0 +1,62 @@
+const { EndCondition } = require('../model');
+const ApiError = require('../exception/ApiError');
+const Joi = require("joi");
+
+const createEndConditionSchema = require("../validation/schema/EndConditionSchema");
+
+class EndConditionService {
+
+    async create(data) {
+
+        const { error } = createEndConditionSchema.validate(data);
+        if (error) {
+            throw ApiError.badRequest(error.details[0].message);
+        }
+
+        try {
+            const { name, operator, value, endConditionId } = data;
+
+            const endCondition = await EndCondition.create({
+                name: name,
+                operator: operator,
+                value: value,
+                endConditionId: endConditionId
+            });
+
+            return endCondition;
+        } catch (e) {
+            throw ApiError.badRequest('Error creating end condition', e.message);
+        }
+    }
+
+    async findById(endConditionId) {
+        try {
+            return await EndCondition.findByPk(endConditionId);
+        } catch (e) {
+            throw ApiError.badRequest('Error finding end condition by ID', e.message);
+        }
+    }
+
+    async findByEventEndCondition(eventEndConditionId) {
+        try {
+            return await EndCondition.findAll({
+                where: { endConditionId: eventEndConditionId }
+            });
+        } catch (e) {
+            throw ApiError.badRequest('Error finding end conditions by event end condition', e.message);
+        }
+    }
+
+    async updateCompletion(endConditionId, isCompleted) {
+        try {
+            return await EndCondition.update(
+                { isCompleted: isCompleted },
+                { where: { id: endConditionId } }
+            );
+        } catch (e) {
+            throw ApiError.badRequest('Error updating end condition completion', e.message);
+        }
+    }
+}
+
+module.exports = new EndConditionService();

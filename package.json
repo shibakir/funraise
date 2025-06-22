@@ -1,33 +1,47 @@
 {
-  "name": "funraise-new",
+  "name": "foo",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node app.js",
     "dev": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "reset-db": "node script/resetDb.js",
+    "docs:generate": "graphdoc -e http://localhost:3000/graphql -o ./docs --force",
+    "docs:serve": "npx http-server ./docs -p 8080 -o",
+    "docs": "npm run docs:generate && npm run docs:serve"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@prisma/client": "^6.6.0",
-    "axios": "^1.8.4",
-    "bcrypt": "^5.1.1",
-    "bull": "^4.16.5",
+    "@graphql-tools/schema": "^10.0.23",
+    "axios": "^1.10.0",
+    "bcryptjs": "^3.0.2",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "firebase": "^11.6.0",
-    "firebase-admin": "^12.0.0",
-    "ioredis": "^5.6.1",
+    "firebase": "^11.9.1",
+    "google-auth-library": "^10.1.0",
+    "graphql": "^15.10.1",
+    "graphql-http": "^1.22.4",
+    "graphql-subscriptions": "^2.0.0",
+    "graphql-tag": "^2.12.6",
+    "graphql-ws": "^5.16.0",
+    "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^1.4.5-lts.1",
-    "node-cron": "^3.0.3",
-    "prisma": "^6.6.0"
+    "lodash": "^4.17.21",
+    "mysql2": "^3.14.1",
+    "node-cron": "^4.1.0",
+    "nodemailer": "^7.0.3",
+    "nodemon": "^3.1.10",
+    "sequelize": "^6.37.7",
+    "uuid": "^7.0.3",
+    "ws": "^8.17.1"
   },
   "devDependencies": {
-    "prisma-dbml-generator": "^0.12.0"
+    "@2fd/graphdoc": "^2.4.0",
+    "http-server": "^14.1.1",
+    "knip": "^5.61.2"
   }
 }

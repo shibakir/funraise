@@ -1,0 +1,108 @@
+const { Event, EventEndCondition, EndCondition } = require('../model');
+const { userService } = require('../service');
+
+async function seedTestData() {
+    try {
+        console.log('Seeding test data...');
+
+        // Create test users
+        const users = await Promise.all([
+            // mock user DO NOT DELETE
+            userService.create({
+                email: 'user1@test.com',
+                username: 'user1',
+                password: 'password1',
+            }),
+            userService.create({
+                email: 'user2@test.com',
+                username: 'user2',
+                password: 'password2',
+            }),
+            userService.create({
+                email: 'user3@test.com',
+                username: 'user3',
+                password: 'password3',
+            })
+        ]);
+
+        // Create events
+        const events = await Promise.all([
+            // Event 1: DONATION type
+            Event.create({
+                name: 'Help Children',
+                description: 'Charity event for children in need',
+                bankAmount: 0,
+                status: 'IN_PROGRESS',
+                type: 'DONATION',
+                imageUrl: 'https://i.ebayimg.com/00/s/MTYwMFgxNTU0/z/YF8AAOSw64Fk7IKQ/$_57.JPG?set_id=880000500F',
+                userId: users[0].id,
+                recipientId: users[1].id
+            }),
+            // Event 2: FUNDRAISING type
+            Event.create({
+                name: 'School Fundraiser',
+                description: 'Raising funds for school equipment',
+                bankAmount: 0,
+                status: 'IN_PROGRESS',
+                type: 'FUNDRAISING',
+                imageUrl: 'https://doc.smarty.cz/pic/7XVA300401-600-600.webp',
+                userId: users[1].id,
+                recipientId: users[2].id
+            }),
+            // Event 3: JACKPOT type
+            Event.create({
+                name: 'Lucky Draw',
+                description: 'Win big prizes!',
+                bankAmount: 0,
+                status: 'IN_PROGRESS',
+                type: 'JACKPOT',
+                imageUrl: 'https://jablickar.cz/wp-content/uploads/2021/06/iPhone-2-1.jpeg',
+                userId: users[2].id,
+                recipientId: users[0].id
+            })
+        ]);
+
+        // Create event end conditions
+        for (const event of events) {
+            const eventEndCondition = await EventEndCondition.create({
+                eventId: event.id,
+                isCompleted: false,
+                isFailed: false
+            });
+
+            // Add different end conditions based on event type
+            if (event.type === 'DONATION') {
+                await EndCondition.create({
+                    endConditionId: eventEndCondition.id,
+                    name: 'BANK',
+                    operator: 'GREATER_EQUALS',
+                    value: '1000',
+                    isCompleted: false
+                });
+            } else if (event.type === 'FUNDRAISING') {
+                await EndCondition.create({
+                    endConditionId: eventEndCondition.id,
+                    name: 'PARTICIPATION',
+                    operator: 'LESS_EQUALS',
+                    value: '5',
+                    isCompleted: false
+                });
+            } else if (event.type === 'JACKPOT') {
+                await EndCondition.create({
+                    endConditionId: eventEndCondition.id,
+                    name: 'TIME',
+                    operator: 'GREATER_EQUALS',
+                    value: String(new Date('2025-06-30')),
+                    isCompleted: false
+                });
+            }
+        }
+
+        console.log('Test data seeded successfully!');
+    } catch (error) {
+        console.error('Error seeding test data:', error);
+        throw error;
+    }
+}
+
+module.exports = seedTestData; 
