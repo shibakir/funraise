@@ -67,6 +67,8 @@ class AchievementTracker {
         try {
             // Find all criteria of this type
             const criteria = await achievementCriterionService.findByType(criterionType);
+            
+            //console.log(`Updating progress for user ${userId}, criterion ${criterionType}, value ${value}, found ${criteria.length} criteria`);
 
             for (const criterion of criteria) {
                 // Find the user's achievement
@@ -76,6 +78,7 @@ class AchievementTracker {
                 );
 
                 if (!userAchievement || userAchievement.status) {
+                    //console.log(`Skipping criterion ${criterion.id} - achievement already obtained or not found`);
                     continue; // Skip if the achievement is already obtained
                 }
 
@@ -92,15 +95,18 @@ class AchievementTracker {
                         0,
                         false
                     );
+                    //console.log(`Created new progress for criterion ${criterion.id}`);
                 }
 
                 if (progress.completed) {
+                    //console.log(`Skipping criterion ${criterion.id} - already completed`);
                     continue; // Criterion is already completed
                 }
 
                 // Update the value depending on the operation type
                 const updateType = options.updateType || 'increment';
                 let newValue = progress.currentValue;
+                const oldValue = newValue;
 
                 switch (updateType) {
                     case 'increment':
@@ -119,6 +125,8 @@ class AchievementTracker {
                 // Check if the criterion is completed
                 const isCompleted = newValue >= criterion.value;
 
+                //console.log(`Criterion ${criterion.id} (${criterionType}): ${oldValue} -> ${newValue}/${criterion.value} ${isCompleted ? 'COMPLETED!' : ''}`);
+
                 // Update the progress
                 await userCriterionProgressService.updateProgress(
                     progress.id,
@@ -129,11 +137,12 @@ class AchievementTracker {
 
                 // If the criterion is completed, check the achievement
                 if (isCompleted) {
+                    //console.log(`Checking achievement completion for criterion ${criterion.id}`);
                     await this.checkAchievementCompletion(userAchievement.id);
                 }
             }
         } catch (error) {
-            //console.error('Error updating achievement progress:', error);
+            console.error('Error updating achievement progress:', error);
             throw error;
         }
     }

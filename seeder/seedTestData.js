@@ -33,7 +33,7 @@ async function seedTestData() {
                 description: 'Charity event for children in need',
                 bankAmount: 0,
                 status: 'IN_PROGRESS',
-                type: 'DONATION',
+                type: EVENT_TYPES.DONATION,
                 imageUrl: 'https://i.ebayimg.com/00/s/MTYwMFgxNTU0/z/YF8AAOSw64Fk7IKQ/$_57.JPG?set_id=880000500F',
                 userId: users[0].id,
                 recipientId: users[1].id
@@ -44,7 +44,7 @@ async function seedTestData() {
                 description: 'Raising funds for school equipment',
                 bankAmount: 0,
                 status: 'IN_PROGRESS',
-                type: 'FUNDRAISING',
+                type: EVENT_TYPES.FUNDRAISING,
                 imageUrl: 'https://doc.smarty.cz/pic/7XVA300401-600-600.webp',
                 userId: users[1].id,
                 recipientId: users[2].id
@@ -55,7 +55,7 @@ async function seedTestData() {
                 description: 'Win big prizes!',
                 bankAmount: 0,
                 status: 'IN_PROGRESS',
-                type: 'JACKPOT',
+                type: EVENT_TYPES.JACKPOT,
                 imageUrl: 'https://jablickar.cz/wp-content/uploads/2021/06/iPhone-2-1.jpeg',
                 userId: users[2].id,
                 recipientId: users[0].id
@@ -71,7 +71,7 @@ async function seedTestData() {
             });
 
             // Add different end conditions based on event type
-            if (event.type === 'DONATION') {
+            if (event.type === EVENT_TYPES.DONATION) {
                 await EndCondition.create({
                     endConditionId: eventEndCondition.id,
                     name: 'BANK',
@@ -79,7 +79,7 @@ async function seedTestData() {
                     value: '1000',
                     isCompleted: false
                 });
-            } else if (event.type === 'FUNDRAISING') {
+            } else if (event.type === EVENT_TYPES.FUNDRAISING) {
                 await EndCondition.create({
                     endConditionId: eventEndCondition.id,
                     name: 'PARTICIPATION',
@@ -87,7 +87,7 @@ async function seedTestData() {
                     value: '5',
                     isCompleted: false
                 });
-            } else if (event.type === 'JACKPOT') {
+            } else if (event.type === EVENT_TYPES.JACKPOT) {
                 await EndCondition.create({
                     endConditionId: eventEndCondition.id,
                     name: 'TIME',

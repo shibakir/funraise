@@ -2,6 +2,10 @@
 let eventService = null;
 let userService = null;
 
+// Import payout constants
+const { PAYOUT_PERCENTAGES } = require('../../constants/eventPayouts');
+const { EVENT_TYPES } = require('../../constants/application');
+
 function getEventService() {
     if (!eventService) {
         eventService = require('../../service').eventService;
@@ -42,33 +46,79 @@ class EventCompletionTracker {
                 return sum + (participation.deposit || 0);
             }, 0);
 
-            // Calculate the income per participant
-            const incomePerParticipant = participantsCount > 0 ? totalBank / participantsCount : 0;
+            //console.log(`Processing achievement tracking for event ${eventId} with ${participantsCount} participants and bank ${totalBank}`);
 
-            const eventData = {
-                bankAmount: totalBank,
-                participantsCount: participantsCount,
-                completedAt: new Date(),
-                userIncome: incomePerParticipant
-            };
+            // Calculate payout based on event type (matching the logic in EventConditionTracker)
+            const payoutPercentage = PAYOUT_PERCENTAGES[event.type] || PAYOUT_PERCENTAGES.DEFAULT;
+
+            const totalPayout = Math.floor(totalBank * payoutPercentage);
 
             // Update achievements for each participant
             for (const participation of participants) {
                 const userId = participation.user.id;
                 
-                // Track event completion
+                // Calculate potential income for this participant based on event type
+                let potentialIncome = 0;
+                
+                if (event.type === EVENT_TYPES.JACKPOT) {
+                    // For JACKPOT, any participant could potentially win the full amount
+                    potentialIncome = totalPayout;
+                } else {
+                    // For DONATION/FUNDRAISING, recipient gets the payout
+                    // Participants track the completion but don't get direct income
+                    potentialIncome = 0;
+                }
+
+                const eventData = {
+                    bankAmount: totalBank,
+                    participantsCount: participantsCount,
+                    completedAt: new Date(),
+                    userIncome: potentialIncome
+                };
+                
+                // Track event completion for participant
                 const { onEventCompleted } = require('./index');
                 await onEventCompleted(userId, eventId, eventData);
+                
+                //console.log(`Achievement tracking completed for participant ${userId} in event ${eventId}`);
             }
 
             // Also update achievements for the event creator (if he is not a participant)
             const creatorIsParticipant = participants.some(p => p.user.id === event.userId);
             if (!creatorIsParticipant && event.userId) {
+                const eventData = {
+                    bankAmount: totalBank,
+                    participantsCount: participantsCount,
+                    completedAt: new Date(),
+                    userIncome: 0 // Creator doesn't get income just for creating
+                };
+                
                 const { onEventCompleted } = require('./index');
                 await onEventCompleted(event.userId, eventId, eventData);
+                
+                //console.log(`Achievement tracking completed for creator ${event.userId} in event ${eventId}`);
             }
 
-            //console.log(`Event ${eventId} completed with ${participantsCount} participants and bank ${totalBank}`);
+            // Track achievements for the recipient (if different from creator and participants)
+            if (event.recipientId && event.recipientId !== event.userId) {
+                const recipientIsParticipant = participants.some(p => p.user.id === event.recipientId);
+                
+                if (!recipientIsParticipant) {
+                    const eventData = {
+                        bankAmount: totalBank,
+                        participantsCount: participantsCount,
+                        completedAt: new Date(),
+                        userIncome: totalPayout // Recipient gets the payout
+                    };
+                    
+                    const { onEventCompleted } = require('./index');
+                    await onEventCompleted(event.recipientId, eventId, eventData);
+                    
+                    //console.log(`Achievement tracking completed for recipient ${event.recipientId} in event ${eventId}`);
+                }
+            }
+
+            //console.log(`Event ${eventId} achievement tracking completed with ${participantsCount} participants and bank ${totalBank}`);
 
         } catch (error) {
             //console.error('Error handling event completion:', error);

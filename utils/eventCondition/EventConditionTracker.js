@@ -3,8 +3,13 @@ let eventService = null;
 let eventEndConditionService = null;
 let endConditionService = null;
 let participationService = null;
+let transactionService = null;
 let pubsub = null;
 let SUBSCRIPTION_EVENTS = null;
+
+// Import payout constants
+const { PAYOUT_PERCENTAGES, COMMISSION_RATES, JACKPOT_CONFIG } = require('../../constants/eventPayouts');
+const {EVENT_TYPES, CONDITION_TYPES} = require("../../constants/application");
 
 function getEventService() {
     if (!eventService) {
@@ -32,6 +37,13 @@ function getParticipationService() {
         participationService = require('../../service').participationService;
     }
     return participationService;
+}
+
+function getTransactionService() {
+    if (!transactionService) {
+        transactionService = require('../../service').transactionService;
+    }
+    return transactionService;
 }
 
 function getPubSub() {
@@ -137,13 +149,13 @@ class EventConditionTracker {
         const conditionType = endCondition.name; // Теперь это enum ConditionType
 
         switch (conditionType) {
-            case 'PARTICIPATION':
+            case CONDITION_TYPES.PARTICIPATION:
                 return await this.getPeopleCount(eventId);
             
-            case 'BANK':
+            case CONDITION_TYPES.BANK:
                 return await this.getBankAmount(eventId);
             
-            case 'TIME':
+            case CONDITION_TYPES.TIME:
                 // For time, return 1 if the condition is met, 0 if not
                 const isTimeReached = await this.getTimeCondition(eventId, endCondition.value);
                 return isTimeReached ? 1 : 0;
@@ -182,7 +194,7 @@ class EventConditionTracker {
                 await this.checkAndUpdateEventEndCondition(endCondition.endConditionId, eventId);
             } else {
                 // Special handling for time conditions - if time has passed, check if group should fail
-                if (endCondition.name === 'TIME') {
+                if (endCondition.name === CONDITION_TYPES.TIME) {
                     const timeReached = await this.getTimeCondition(eventId, endCondition.value);
                     if (timeReached) {
                         // Time deadline reached, check if this group should be marked as failed
@@ -212,7 +224,7 @@ class EventConditionTracker {
             
             // Check if there are non-time conditions that are not completed
             const nonTimeConditions = conditions.filter(condition => {
-                return condition.name !== 'TIME';
+                return condition.name !== CONDITION_TYPES.TIME;
             });
 
             const hasUncompletedNonTimeConditions = nonTimeConditions.some(condition => !condition.isCompleted);
@@ -348,9 +360,111 @@ class EventConditionTracker {
      */
     async onEventCompleted(eventId) {
         try {
-            //console.log(`Event ${eventId} completed!`);
+            //console.log(`Event ${eventId} completed! Processing payout...`);
+            
+            // Get event with participants
+            const event = await getEventService().findByIdWithParticipants(eventId);
+            if (!event) {
+                console.error(`Event ${eventId} not found`);
+                return;
+            }
+
+            // Track achievements for event completion FIRST
+            try {
+                const EventCompletionTracker = require('../achievement/EventCompletionTracker');
+                await EventCompletionTracker.handleEventCompletion(eventId);
+                //console.log(`Achievement tracking completed for event ${eventId}`);
+            } catch (achievementError) {
+                console.error(`Error tracking achievements for event ${eventId}:`, achievementError);
+                // Continue with payout even if achievement tracking fails
+            }
+
+            // Calculate total bank amount (sum of all participant deposits)
+            const participations = event.participations || [];
+            const totalBankAmount = participations.reduce((total, participation) => {
+                return total + (participation.deposit || 0);
+            }, 0);
+
+            if (totalBankAmount <= 0) {
+                console.log(`Event ${eventId} has no funds to transfer`);
+                return;
+            }
+
+            // Calculate payout percentage based on event type
+            const payoutPercentage = PAYOUT_PERCENTAGES[event.type] || PAYOUT_PERCENTAGES.DEFAULT;
+            const commissionRate = COMMISSION_RATES[event.type] || COMMISSION_RATES.DEFAULT;
+            
+            if (!PAYOUT_PERCENTAGES[event.type]) {
+                console.warn(`Unknown event type: ${event.type}, using ${PAYOUT_PERCENTAGES.DEFAULT * 100}% payout`);
+            }
+
+            const payoutAmount = Math.floor(totalBankAmount * payoutPercentage);
+            const commissionAmount = totalBankAmount - payoutAmount;
+
+            //console.log(`Event ${eventId} (${event.type}): Total bank: ${totalBankAmount}, Payout: ${payoutAmount} (${payoutPercentage * 100}%), Commission: ${commissionAmount}`);
+
+            let recipientId = event.recipientId;
+
+            // Special handling for JACKPOT events - randomly select winner from participants
+            if (event.type === EVENT_TYPES.JACKPOT) {
+                if (participations.length === 0) {
+                    console.log(`Event ${eventId} (JACKPOT) has no participants, skipping payout`);
+                    return;
+                }
+
+                // JACKPOT randomness coefficient proportional to bank size
+                const baseRandomTickets = Math.max(
+                    JACKPOT_CONFIG.MINIMUM_BASE_TICKETS, 
+                    Math.floor(totalBankAmount * JACKPOT_CONFIG.RANDOMNESS_COEFFICIENT)
+                );
+
+                // Create weighted array based on deposit amounts + bank-proportional randomness for fair selection
+                const weightedParticipants = [];
+                participations.forEach(participation => {
+                    const depositWeight = Math.max(1, Math.floor(participation.deposit || 1)); // Weight based on deposit
+                    const totalWeight = baseRandomTickets + depositWeight; // Bank-proportional tickets + deposit weight
+                    
+                    for (let i = 0; i < totalWeight; i++) {
+                        weightedParticipants.push(participation.userId);
+                    }
+                });
+
+                // Select random winner
+                const randomIndex = Math.floor(Math.random() * weightedParticipants.length);
+                recipientId = weightedParticipants[randomIndex];
+                
+                //console.log(`JACKPOT winner selected: User ${recipientId} from ${participations.length} participants (base tickets: ${baseRandomTickets} per participant, proportional to bank: ${totalBankAmount})`);
+            } else {
+                // For DONATION and FUNDRAISING events, check if recipient exists
+                if (!recipientId) {
+                    console.log(`Event ${eventId} has no recipient, skipping payout`);
+                    return;
+                }
+            }
+
+            //console.log(`Transferring ${payoutAmount} to recipient ${recipientId} for event ${eventId} (type: ${event.type})`);
+
+            // Create transaction for recipient (EVENT_INCOME) with payout amount after commission
+            await getTransactionService().create({
+                amount: payoutAmount,
+                type: 'EVENT_INCOME',
+                userId: recipientId
+            });
+
+            //console.log(`Successfully transferred ${payoutAmount} to recipient ${recipientId} for completed event ${eventId} (commission: ${commissionAmount})`);
+
+            // Publish balance update for recipient
+            try {
+                const { pubsub, SUBSCRIPTION_EVENTS } = getPubSub();
+                pubsub.publish(SUBSCRIPTION_EVENTS.BALANCE_UPDATED, {
+                    balanceUpdated: { id: recipientId }
+                });
+            } catch (pubsubError) {
+                console.error('Error publishing balance update:', pubsubError);
+            }
+
         } catch (error) {
-            //console.error('Error handling the completion of an event:', error);
+            console.error('Error handling the completion of an event:', error);
         }
     }
 

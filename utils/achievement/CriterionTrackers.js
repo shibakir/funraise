@@ -1,5 +1,4 @@
 const AchievementTracker = require('./AchievementTracker');
-const { User, Event, Participation, Transaction } = require('../../model');
 
 /**
  * Base class for tracking criteria
@@ -61,7 +60,7 @@ class EventCriterionTracker extends BaseCriterionTracker {
      */
     async trackEventTimeCompleted(userId, eventId, completedAt) {
         try {
-            // Здесь может быть логика проверки временных условий
+            // TODO: add time condition
             await this.achievementTracker.updateProgress(
                 userId, 
                 'EVENT_TIME_COMPLETED', 
@@ -233,6 +232,14 @@ class CriterionManager {
     // Methods for events
     async onEventCompleted(userId, eventId, eventData) {
         const { bankAmount, participantsCount, completedAt, userIncome } = eventData;
+        /*
+        console.log(`Processing achievement criteria for user ${userId} in completed event ${eventId}:`, {
+            bankAmount,
+            participantsCount,
+            userIncome,
+            completedAt: completedAt ? completedAt.toISOString() : null
+        });
+        */
 
         // Track different event criteria
         if (bankAmount) {
@@ -247,13 +254,16 @@ class CriterionManager {
             await this.eventTracker.trackEventTimeCompleted(userId, eventId, completedAt);
         }
         
-        if (userIncome) {
+        if (userIncome && userIncome > 0) {
             await this.eventTracker.trackEventIncomeOnetime(userId, eventId, userIncome);
             await this.eventTracker.trackEventIncomeAll(userId, userIncome);
+            //console.log(`Tracked income achievements for user ${userId}: onetime=${userIncome}, total increment=${userIncome}`);
         }
 
         await this.eventTracker.trackEventCountCompleted(userId);
         await this.eventTracker.trackEventCountAll(userId);
+        
+        //console.log(`Completed achievement tracking for user ${userId} in event ${eventId}`);
     }
 
     async onEventCreated(userId, eventId) {

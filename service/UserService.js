@@ -6,6 +6,7 @@ const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const mailService = require('../utils/mail/mailService');
+const { AUTH_CONFIG, VALIDATION_LIMITS } = require('../constants');
 
 class UserService {
 
@@ -39,8 +40,7 @@ class UserService {
             }
 
             // Hash password before saving
-            const saltRounds = 12;
-            const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+            const hashedPassword = await bcrypt.hash(data.password, AUTH_CONFIG.BCRYPT_SALT_ROUNDS);
 
             // Generate activation link
             const activationLink = crypto.randomBytes(32).toString('hex');
@@ -305,11 +305,11 @@ class UserService {
             // update username
             if (data.username && data.username !== user.username) {
                 // Validate username
-                if (data.username.length < 5) {
-                    throw ApiError.badRequest('Username must be at least 5 characters long');
+                if (data.username.length < VALIDATION_LIMITS.USERNAME_MIN_LENGTH) {
+                    throw ApiError.badRequest(`Username must be at least ${VALIDATION_LIMITS.USERNAME_MIN_LENGTH} characters long`);
                 }
-                if (data.username.length > 30) {
-                    throw ApiError.badRequest('Username cannot exceed 30 characters');
+                if (data.username.length > VALIDATION_LIMITS.USERNAME_MAX_LENGTH) {
+                    throw ApiError.badRequest(`Username cannot exceed ${VALIDATION_LIMITS.USERNAME_MAX_LENGTH} characters`);
                 }
                 if (!/^[a-zA-Z0-9_]+$/.test(data.username)) {
                     throw ApiError.badRequest('Username can only contain letters, numbers and underscore');
@@ -352,11 +352,11 @@ class UserService {
             // update password
             if (data.newPassword && data.currentPassword) {
                 // Validate new password
-                if (data.newPassword.length < 5) {
-                    throw ApiError.badRequest('Password must be at least 5 characters long');
+                if (data.newPassword.length < VALIDATION_LIMITS.PASSWORD_MIN_LENGTH) {
+                    throw ApiError.badRequest(`Password must be at least ${VALIDATION_LIMITS.PASSWORD_MIN_LENGTH} characters long`);
                 }
-                if (data.newPassword.length > 100) {
-                    throw ApiError.badRequest('Password cannot exceed 100 characters');
+                if (data.newPassword.length > VALIDATION_LIMITS.PASSWORD_MAX_LENGTH) {
+                    throw ApiError.badRequest(`Password cannot exceed ${VALIDATION_LIMITS.PASSWORD_MAX_LENGTH} characters`);
                 }
 
                 // check current password with bcrypt
@@ -366,8 +366,7 @@ class UserService {
                 }
                 
                 // Hash new password before saving
-                const saltRounds = 12;
-                updateData.password = await bcrypt.hash(data.newPassword, saltRounds);
+                updateData.password = await bcrypt.hash(data.newPassword, AUTH_CONFIG.BCRYPT_SALT_ROUNDS);
             }
 
             // update user

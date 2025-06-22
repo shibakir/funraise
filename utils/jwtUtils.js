@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { AUTH_CONFIG } = require('../constants');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'some_secret_key';
 const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh_secret_key';
@@ -12,7 +13,7 @@ const generateToken = (user) => {
         username: user.username,
     };
 
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: '10s' });
+    return jwt.sign(payload, JWT_SECRET, { expiresIn: AUTH_CONFIG.JWT_EXPIRES_IN });
 };
 
 const generateRefreshToken = (user) => {
@@ -24,7 +25,7 @@ const generateRefreshToken = (user) => {
         username: user.username,
     };
 
-    return jwt.sign(payload, REFRESH_SECRET, { expiresIn: '7d' });
+    return jwt.sign(payload, REFRESH_SECRET, { expiresIn: AUTH_CONFIG.REFRESH_EXPIRES_IN });
 };
 
 const verifyToken = (token) => {

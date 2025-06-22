@@ -6,6 +6,7 @@ const EventEndConditionService = require('./EventEndConditionService');
 const { onEventCreated } = require('../utils/achievement');
 const eventConditions = require('../utils/eventCondition');
 const { firebaseStorageService } = require('../utils/media/FirebaseStorageService');
+const { FILE_LIMITS, EVENT_TYPES } = require('../constants');
 
 class EventService {
 
@@ -25,28 +26,27 @@ class EventService {
             let imageUrl = null;
             if (imageFile) {
                 try {
-                    // Декодируем base64 изображение
+                    // Decode base64 image
                     const base64Data = imageFile.replace(/^data:image\/\w+;base64,/, '');
                     const buffer = Buffer.from(base64Data, 'base64');
                     
-                    // Проверяем размер файла (5MB = 5 * 1024 * 1024 байт)
-                    const maxSize = 5 * 1024 * 1024;
-                    if (buffer.length > maxSize) {
-                        throw ApiError.badRequest('Image size must not exceed 5MB');
+                    // Check file size
+                    if (buffer.length > FILE_LIMITS.MAX_IMAGE_SIZE) {
+                        throw ApiError.badRequest(`Image size must not exceed ${FILE_LIMITS.MAX_IMAGE_SIZE / 1024 / 1024}MB`);
                     }
                     
-                    // Создаем объект файла для Firebase
+                    // Create file object for Firebase
                     const file = {
                         buffer: buffer,
                         originalname: `event-${Date.now()}.jpg`,
                         mimetype: 'image/jpeg'
                     };
 
-                    // Загружаем в Firebase
+                    // Upload to Firebase
                     const firebasePath = `events/${userId}/${Date.now()}.jpg`;
                     imageUrl = await firebaseStorageService.uploadImage(file, firebasePath);
                     
-                    console.log('Image uploaded to Firebase:', imageUrl);
+                    //console.log('Image uploaded to Firebase:', imageUrl);
                 } catch (uploadError) {
                     console.error('Error uploading image to Firebase:', uploadError);
                     if (uploadError instanceof ApiError) {
@@ -58,10 +58,10 @@ class EventService {
 
             let recipientId = null;
 
-            // Используем переданный recipientId или устанавливаем userId для DONATION/FUNDRAISING
+            // Use passed recipientId or set userId for DONATION/FUNDRAISING
             if (inputRecipientId) {
                 recipientId = inputRecipientId;
-            } else if (type === "DONATION" || type === "FUNDRAISING") {
+            } else if (type === EVENT_TYPES.DONATION || type === EVENT_TYPES.FUNDRAISING) {
                 recipientId = userId;
             }
 
