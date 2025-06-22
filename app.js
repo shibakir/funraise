@@ -1,63 +1,109 @@
+require('dotenv').config()
 const express = require('express');
-const { PrismaClient } = require('@prisma/client');
-const multer = require('multer');
-
+const { createServer } = require('http');
 const cron = require('node-cron');
-const { checkTimeConditions } = require('./utils/timeConditionChecker');
+const errorMiddleware = require('./middleware/ErrorMiddleware');
+const { graphqlAuthMiddleware } = require('./middleware/AuthMiddleware');
+const { syncDatabase } = require('./model');
+const { eventService } = require('./service');
+const { createGraphQLHandler, setupWebSocketServer } = require('./graphql/server');
+const authRoutes = require('./routes/authRoutes');
+
+// Use environment variables for server configuration
+const PORT = process.env.FUNRAISE_APP_PORT || 3000;
+const APP_URL = process.env.FUNRAISE_APP_URL || `http://localhost:${PORT}`;
 
 const app = express();
-const prisma = new PrismaClient();
 
-// Настройка multer для обработки загрузки файлов
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 5 * 1024 * 1024, // ограничение 5MB
-  },
+// Middleware setup
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ limit: '5mb', extended: true }));
+
+// HTTP GraphQL endpoint with auth middleware
+app.use('/graphql', graphqlAuthMiddleware, createGraphQLHandler());
+
+// Health check endpoint for Docker
+app.get('/health', (req, res) => {
+    res.status(200).json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        service: 'funraise-api'
+    });
 });
 
-// middleware
-app.use(express.json());
+// Auth routes (only email activation)
+app.use('/', authRoutes);
 
-// Логирование всех запросов
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  next();
-});
+// Discord OAuth callback handler
+app.get('/auth/discord/callback', (req, res) => {
+    const { code, state } = req.query;
 
-// add routes
-const userRoutes = require('./routes/userRoutes');
-const authRoutes = require('./routes/authRoutes');
-const eventRoutes = require('./routes/eventRoutes');
-const participationRoutes = require('./routes/participationRoutes');
-const transactionRoutes = require('./routes/transactionRoutes');
-
-app.use('/auth', authRoutes);
-app.use('/users', userRoutes);
-app.use('/events', eventRoutes);
-app.use('/participations', participationRoutes);
-app.use('/transactions', transactionRoutes);
-
-// Middleware для обработки 404 ошибок
-app.use((req, res, next) => {
-    res.status(404).json({ message: 'Маршрут не найден' });
-});
-// Middleware для обработки остальных ошибок
-app.use((err, req, res, next) => {
-    console.error('Server error:', err.stack);
-    res.status(500).json({ message: 'Ошибка на сервере' });
-});
-
-// Настройка cron job для проверки временных условий каждую секунду
-cron.schedule('* * * * * *', async () => {
-    try {
-        await checkTimeConditions();
-    } catch (error) {
-        console.error('Error in time condition check cron job:', error);
+    if (code) {
+        // redirect back on mobile
+        const redirectUrl = `funraise://auth/discord/callback?code=${code}${state ? `&state=${state}` : ''}`;
+        res.redirect(redirectUrl);
+    } else {
+        res.status(400).json({ error: 'No authorization code provided' });
     }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
-});
+// Error handling middleware
+app.use(errorMiddleware);
+
+/**
+ * Initializes and starts the FunRaise GraphQL server
+ * Sets up database connection, HTTP server, WebSocket server, and cron jobs
+ */
+const start = async () => {
+    try {
+        // Initialize database
+        console.log('Initializing database...');
+        await syncDatabase();
+        console.log('Database synchronized successfully');
+
+
+
+        // Always clear database and run seeders
+        console.log('Clearing database and running seeders...');
+        const { runAllSeeders, seedProductionData, smartClearDatabase } = require('./seeder');
+        
+        // Clear all data
+        await smartClearDatabase();
+        console.log('Database cleared');
+
+        // Run seeders with some test data & achievements
+        await runAllSeeders();
+
+        
+    
+        // Create HTTP server
+        const server = createServer(app);
+        
+        // Setup WebSocket server for GraphQL subscriptions
+        console.log('Setting up WebSocket server...');
+        setupWebSocketServer(server);
+        console.log('WebSocket server configured');
+        
+        // Start the server
+        server.listen(PORT, () => {
+            console.log(`Server started at ${APP_URL}/graphql`);
+            console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+            console.log(`Port: ${PORT}`);
+
+            // Setup cron job for checking time conditions every minute
+            cron.schedule('* * * * *', async () => {
+                try {
+                    await eventService.checkTimeConditions();
+                } catch (error) {
+                    console.error('Error in cron job for time conditions:', error);
+                }
+            });
+            //console.log('Cron job for time conditions is active (runs every minute)');
+        });
+    } catch (error) {
+        console.error('Failed to start server:', error);
+        process.exit(1);
+    }
+}
+
+start();
