@@ -1,5 +1,5 @@
-const { EndCondition } = require('../model');
 const ApiError = require('../exception/ApiError');
+const { EndConditionRepository } = require('../repository');
 const Joi = require("joi");
 
 const createEndConditionSchema = require("../validation/schema/EndConditionSchema");
@@ -16,7 +16,7 @@ class EndConditionService {
         try {
             const { name, operator, value, endConditionId } = data;
 
-            const endCondition = await EndCondition.create({
+            const endCondition = await EndConditionRepository.create({
                 name: name,
                 operator: operator,
                 value: value,
@@ -31,7 +31,7 @@ class EndConditionService {
 
     async findById(endConditionId) {
         try {
-            return await EndCondition.findByPk(endConditionId);
+            return await EndConditionRepository.findByPk(endConditionId);
         } catch (e) {
             throw ApiError.badRequest('Error finding end condition by ID', e.message);
         }
@@ -39,9 +39,7 @@ class EndConditionService {
 
     async findByEventEndCondition(eventEndConditionId) {
         try {
-            return await EndCondition.findAll({
-                where: { endConditionId: eventEndConditionId }
-            });
+            return await EndConditionRepository.findByEventEndCondition(eventEndConditionId);
         } catch (e) {
             throw ApiError.badRequest('Error finding end conditions by event end condition', e.message);
         }
@@ -49,10 +47,7 @@ class EndConditionService {
 
     async updateCompletion(endConditionId, isCompleted) {
         try {
-            return await EndCondition.update(
-                { isCompleted: isCompleted },
-                { where: { id: endConditionId } }
-            );
+            return await EndConditionRepository.updateCompletion(endConditionId, isCompleted);
         } catch (e) {
             throw ApiError.badRequest('Error updating end condition completion', e.message);
         }

@@ -1,5 +1,5 @@
-const { Achievement } = require('../model');
 const ApiError = require('../exception/ApiError');
+const { AchievementRepository } = require('../repository');
 
 const createAchievementSchema  = require("../validation/schema/AchievementSchema");
 
@@ -19,7 +19,7 @@ class AchievementService {
                 throw ApiError.businessLogic('At least one condition is required');
             }
 
-            const achievement = await Achievement.create({
+            const achievement = await AchievementRepository.create({
                 name: name,
                 iconUrl: iconUrl,
             });
@@ -35,12 +35,7 @@ class AchievementService {
 
     async getAllWithCriteria() {
         try {
-            return await Achievement.findAll({
-                include: [{
-                    model: require('../model').AchievementCriterion,
-                    as: 'criteria'
-                }]
-            });
+            return await AchievementRepository.findAllWithCriteria();
         } catch (e) {
             throw ApiError.database('Error getting achievements with criteria', e);
         }
@@ -48,11 +43,7 @@ class AchievementService {
 
     async findById(achievementId) {
         try {
-            const achievement = await Achievement.findByPk(achievementId);
-            if (!achievement) {
-                throw ApiError.notFound('Achievement not found');
-            }
-            return achievement;
+            return await AchievementRepository.findByPk(achievementId);
         } catch (e) {
             if (e instanceof ApiError) {
                 throw e;

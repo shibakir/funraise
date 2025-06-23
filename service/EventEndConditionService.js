@@ -1,5 +1,5 @@
-const { EventEndCondition } = require('../model');
 const ApiError = require('../exception/ApiError');
+const { EventEndConditionRepository } = require('../repository');
 
 const EndConditionService = require('./EndConditionService');
 
@@ -9,7 +9,7 @@ class EventEndConditionService {
         try {
             const { conditions, eventId } = data;
 
-            const eventEndConditionGroup = await EventEndCondition.create({
+            const eventEndConditionGroup = await EventEndConditionRepository.create({
                 eventId: eventId
             });
 
@@ -29,13 +29,7 @@ class EventEndConditionService {
 
     async findByEventWithConditions(eventId) {
         try {
-            return await EventEndCondition.findAll({
-                where: { eventId: eventId },
-                include: [{
-                    model: require('../model').EndCondition,
-                    as: 'conditions'
-                }]
-            });
+            return await EventEndConditionRepository.findByEventWithConditions(eventId);
         } catch (e) {
             throw ApiError.badRequest('Error finding event end conditions with conditions', e.message);
         }
@@ -43,7 +37,7 @@ class EventEndConditionService {
 
     async findById(eventEndConditionId) {
         try {
-            return await EventEndCondition.findByPk(eventEndConditionId);
+            return await EventEndConditionRepository.findByPk(eventEndConditionId);
         } catch (e) {
             throw ApiError.badRequest('Error finding event end condition by ID', e.message);
         }
@@ -51,10 +45,7 @@ class EventEndConditionService {
 
     async updateCompletion(eventEndConditionId, isCompleted) {
         try {
-            return await EventEndCondition.update(
-                { isCompleted: isCompleted },
-                { where: { id: eventEndConditionId } }
-            );
+            return await EventEndConditionRepository.updateCompletion(eventEndConditionId, isCompleted);
         } catch (e) {
             throw ApiError.badRequest('Error updating event end condition completion', e.message);
         }
@@ -62,10 +53,7 @@ class EventEndConditionService {
 
     async updateFailure(eventEndConditionId, isFailed) {
         try {
-            return await EventEndCondition.update(
-                { isFailed: isFailed },
-                { where: { id: eventEndConditionId } }
-            );
+            return await EventEndConditionRepository.updateFailure(eventEndConditionId, isFailed);
         } catch (e) {
             throw ApiError.badRequest('Error updating event end condition failure status', e.message);
         }
@@ -73,13 +61,7 @@ class EventEndConditionService {
 
     async findByEventId(eventId) {
         try {
-            return await EventEndCondition.findAll({
-                where: { eventId: eventId },
-                include: [{
-                    model: require('../model').EndCondition,
-                    as: 'conditions'
-                }]
-            });
+            return await EventEndConditionRepository.findByEventId(eventId);
         } catch (e) {
             throw ApiError.badRequest('Error finding event end conditions by event ID', e.message);
         }

@@ -1,5 +1,5 @@
-const { AchievementCriterion } = require('../model');
 const ApiError = require('../exception/ApiError');
+const { AchievementCriterionRepository } = require('../repository');
 
 const createAchievementCriterionSchema  = require("../validation/schema/AchievementCriterionSchema");
 
@@ -15,7 +15,7 @@ class AchievementCriterionService {
         try {
             const { type, value } = data;
 
-            const achievementCriterion = await AchievementCriterion.create({
+            const achievementCriterion = await AchievementCriterionRepository.create({
                 type: type,
                 value: value
             });
@@ -28,13 +28,7 @@ class AchievementCriterionService {
 
     async findByType(criterionType) {
         try {
-            return await AchievementCriterion.findAll({
-                where: { type: criterionType },
-                include: [{
-                    model: require('../model').Achievement,
-                    as: 'achievement'
-                }]
-            });
+            return await AchievementCriterionRepository.findByType(criterionType);
         } catch (e) {
             throw ApiError.badRequest('Error finding criteria by type', e.message);
         }
@@ -42,11 +36,7 @@ class AchievementCriterionService {
 
     async findById(criterionId) {
         try {
-            const criterion = await AchievementCriterion.findByPk(criterionId);
-            if (!criterion) {
-                throw ApiError.notFound('Achievement criterion not found');
-            }
-            return criterion;
+            return await AchievementCriterionRepository.findByPk(criterionId);
         } catch (e) {
             if (e instanceof ApiError) {
                 throw e;

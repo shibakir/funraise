@@ -6,7 +6,7 @@ const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const mailService = require('../utils/mail/mailService');
-const { AUTH_CONFIG, VALIDATION_LIMITS } = require('../constants');
+const { AUTH_CONFIG, VALIDATION_LIMITS, TRANSACTION_TYPES } = require('../constants');
 
 class UserService {
 
@@ -185,18 +185,18 @@ class UserService {
             let addedAmountIsPositive = true;
 
             switch (type) {
-                case 'BALANCE_INCOME':
-                case 'EVENT_INCOME':
-                case 'GIFT':
+                case TRANSACTION_TYPES.BALANCE_INCOME:
+                case TRANSACTION_TYPES.EVENT_INCOME:
+                case TRANSACTION_TYPES.GIFT:
                     addedAmountIsPositive = true;
                     break;
-                case 'BALANCE_OUTCOME':
-                case 'EVENT_OUTCOME':
+                case TRANSACTION_TYPES.BALANCE_OUTCOME:
+                case TRANSACTION_TYPES.EVENT_OUTCOME:
                     addedAmountIsPositive = false;
                     break;
                 default:
                     throw ApiError.businessLogic('Invalid transaction type', [
-                        'Valid types are: BALANCE_INCOME, EVENT_INCOME, GIFT, BALANCE_OUTCOME, EVENT_OUTCOME'
+                        `Valid types are: ${Object.values(TRANSACTION_TYPES).join(', ')}`
                     ]);
             }
 

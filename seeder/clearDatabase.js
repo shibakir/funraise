@@ -26,7 +26,7 @@ async function clearDatabase() {
         // Truncate all tables
         for (const table of results) {
             const tableName = table.TABLE_NAME;
-            console.log(`Clearing table: ${tableName}`);
+            //console.log(`Clearing table: ${tableName}`);
             await sequelize.query(`TRUNCATE TABLE \`${tableName}\``);
         }
         

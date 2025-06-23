@@ -1,83 +1,76 @@
-const { Token } = require('../model');
 const ApiError = require('../exception/ApiError');
+const { TokenRepository } = require('../repository');
 
 class TokenService {
     /**
-     * Сохраняет refresh token в базу данных
-     * @param {number} userId - ID пользователя
-     * @param {string} refreshToken - Refresh token для сохранения
-     * @returns {Promise<Token>} Сохраненный токен
+     * Saves refresh token to the database
+     * @param {number} userId - User ID
+     * @param {string} refreshToken - Refresh token to save
+     * @returns {Promise<Token>} Saved token
      */
     async saveToken(userId, refreshToken) {
         try {
-            // Удаляем старый токен пользователя, если есть
-            await Token.destroy({
-                where: { userId }
-            });
+            // Delete old user token if exists
+            await TokenRepository.deleteByUserId(userId);
 
-            // Создаем новый токен
-            const token = await Token.create({
+            // Create new token
+            const token = await TokenRepository.create({
                 userId,
                 refreshToken
             });
 
             return token;
         } catch (error) {
-            console.error('Error saving token:', error);
             throw ApiError.database('Failed to save refresh token', error);
         }
     }
 
     /**
-     * Находит токен по refresh token
-     * @param {string} refreshToken - Refresh token для поиска
-     * @returns {Promise<Token|null>} Найденный токен или null
+     * Finds token by refresh token
+     * @param {string} refreshToken - Refresh token to find
+     * @returns {Promise<Token|null>} Found token or throws notFound
      */
     async findToken(refreshToken) {
         try {
-            const token = await Token.findOne({
-                where: { refreshToken }
-            });
-
+            const token = await TokenRepository.findByRefreshToken(refreshToken);
+            if (!token) {
+                throw ApiError.notFound('Refresh token not found');
+            }
             return token;
         } catch (error) {
-            console.error('Error finding token:', error);
+            if (error instanceof ApiError) throw error;
             throw ApiError.database('Failed to find refresh token', error);
         }
     }
 
     /**
-     * Удаляет токен из базы данных
-     * @param {string} refreshToken - Refresh token для удаления
-     * @returns {Promise<boolean>} True если токен был удален
+     * Deletes token from the database
+     * @param {string} refreshToken - Refresh token to delete
+     * @returns {Promise<boolean>} True if token was deleted, throws notFound если не найден
      */
     async removeToken(refreshToken) {
         try {
-            const result = await Token.destroy({
-                where: { refreshToken }
-            });
-
-            return result > 0;
+            const result = await TokenRepository.deleteByRefreshToken(refreshToken);
+            if (result === 0) {
+                throw ApiError.notFound('Refresh token not found');
+            }
+            return true;
         } catch (error) {
-            console.error('Error removing token:', error);
+            if (error instanceof ApiError) throw error;
             throw ApiError.database('Failed to remove refresh token', error);
         }
     }
 
     /**
-     * Удаляет все токены пользователя
-     * @param {number} userId - ID пользователя
-     * @returns {Promise<boolean>} True если токены были удалены
+     * Deletes all user tokens
+     * @param {number} userId - User ID
+     * @returns {Promise<boolean>} True if tokens were deleted
      */
     async removeUserTokens(userId) {
         try {
-            const result = await Token.destroy({
-                where: { userId }
-            });
-
+            const result = await TokenRepository.deleteByUserId(userId);
             return result > 0;
         } catch (error) {
-            console.error('Error removing user tokens:', error);
             throw ApiError.database('Failed to remove user tokens', error);
         }
     }

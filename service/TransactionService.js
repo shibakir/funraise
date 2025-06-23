@@ -1,5 +1,5 @@
-const { Transaction, User } = require('../model');
 const ApiError = require('../exception/ApiError');
+const { TransactionRepository, UserRepository } = require('../repository');
 const createTransactionSchema = require("../validation/schema/TransactionSchema");
 const userService = require("./UserService");
 
@@ -15,7 +15,7 @@ class TransactionService {
         const { amount, type, userId } = data;
 
         try {
-            const transaction = await Transaction.create({
+            const transaction = await TransactionRepository.create({
                 amount: amount,
                 type: type,
                 userId: userId
@@ -26,8 +26,6 @@ class TransactionService {
                 type: type,
                 userId: userId
             });
-
-            const user = await User.findOne({ where: { id: userId } });
 
             return transaction;
         } catch (e) {

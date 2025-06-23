@@ -1,12 +1,12 @@
-const { Event, EventEndCondition, EndCondition } = require('../model');
 const ApiError = require('../exception/ApiError');
+const { EventRepository } = require('../repository');
 
 const createEventSchema = require('../validation/schema/EventSchema');
 const EventEndConditionService = require('./EventEndConditionService');
 const { onEventCreated } = require('../utils/achievement');
 const eventConditions = require('../utils/eventCondition');
 const { firebaseStorageService } = require('../utils/media/FirebaseStorageService');
-const { FILE_LIMITS, EVENT_TYPES } = require('../constants');
+const { FILE_LIMITS, EVENT_TYPES, CONDITION_TYPES } = require('../constants');
 
 class EventService {
 
@@ -65,7 +65,7 @@ class EventService {
                 recipientId = userId;
             }
 
-            const event = await Event.create({
+            const event = await EventRepository.create({
                 name: name,
                 description: description,
                 type: type,
@@ -95,19 +95,7 @@ class EventService {
 
     async findByIdWithParticipants(eventId) {
         try {
-            return await Event.findByPk(eventId, {
-                include: [
-                    {
-                        model: require('../model').Participation,
-                        as: 'participations',
-                        include: [{ 
-                            model: require('../model').User, 
-                            as: 'user',
-                            attributes: ['id', 'balance'] 
-                        }]
-                    }
-                ]
-            });
+            return await EventRepository.findByIdWithParticipants(eventId);
         } catch (e) {
             throw ApiError.badRequest('Error finding event with participants', e.message);
         }
@@ -115,11 +103,7 @@ class EventService {
 
     async findByUser(userId, limit = 30) {
         try {
-            return await Event.findAll({
-                where: { userId: userId },
-                order: [['createdAt', 'DESC']],
-                limit: limit
-            });
+            return await EventRepository.findByUser(userId, limit);
         } catch (e) {
             throw ApiError.badRequest('Error finding events by user', e.message);
         }
@@ -127,10 +111,7 @@ class EventService {
 
     async updateStatus(eventId, status) {
         try {
-            return await Event.update(
-                { status: status },
-                { where: { id: eventId } }
-            );
+            return await EventRepository.updateStatus(eventId, status);
         } catch (e) {
             throw ApiError.badRequest('Error updating event status', e.message);
         }
@@ -138,16 +119,7 @@ class EventService {
 
     async findByIdWithEndConditions(eventId) {
         try {
-            return await Event.findByPk(eventId, {
-                include: [{
-                    model: require('../model').EventEndCondition,
-                    as: 'endConditions',
-                    include: [{
-                        model: require('../model').EndCondition,
-                        as: 'conditions'
-                    }]
-                }]
-            });
+            return await EventRepository.findByIdWithEndConditions(eventId);
         } catch (e) {
             throw ApiError.badRequest('Error finding event with end conditions', e.message);
         }
@@ -157,30 +129,14 @@ class EventService {
         try {
             
             // Получаем все активные события
-            const activeEvents = await Event.findAll({
-                where: { 
-                    status: 'IN_PROGRESS' 
-                },
-                include: [{
-                    model: EventEndCondition,
-                    as: 'endConditions',
-                    include: [{
-                        model: EndCondition,
-                        as: 'conditions',
-                        where: {
-                            name: 'TIME' // Только временные условия
-                        },
-                        required: false // LEFT JOIN чтобы получить события и без временных условий
-                    }]
-                }]
-            });
+            const activeEvents = await EventRepository.findActiveEvents();
 
             // Проверяем каждое событие
             for (const event of activeEvents) {
                 if (event.endConditions && event.endConditions.length > 0) {
                     // Проверяем есть ли временные условия
                     const hasTimeConditions = event.endConditions.some(group => 
-                        group.conditions && group.conditions.some(condition => condition.name === 'TIME')
+                        group.conditions && group.conditions.some(condition => condition.name === CONDITION_TYPES.TIME)
                     );
                     
                     if (hasTimeConditions) {
@@ -201,28 +157,7 @@ class EventService {
 
     async findById(eventId, includeEndConditions = true) {
         try {
-            const includeOptions = [];
-            
-            if (includeEndConditions) {
-                includeOptions.push({
-                    model: require('../model').EventEndCondition,
-                    as: 'endConditions',
-                    include: [{
-                        model: require('../model').EndCondition,
-                        as: 'conditions'
-                    }]
-                });
-            }
-
-            const event = await Event.findByPk(eventId, {
-                include: includeOptions
-            });
-
-            if (!event) {
-                throw ApiError.notFound('Event not found');
-            }
-
-            return event;
+            return await EventRepository.findByIdWithOptionalEndConditions(eventId, includeEndConditions);
         } catch (e) {
             if (e instanceof ApiError) {
                 throw e;
@@ -233,22 +168,7 @@ class EventService {
 
     async findAll(includeEndConditions = true) {
         try {
-            const includeOptions = [];
-            
-            if (includeEndConditions) {
-                includeOptions.push({
-                    model: require('../model').EventEndCondition,
-                    as: 'endConditions',
-                    include: [{
-                        model: require('../model').EndCondition,
-                        as: 'conditions'
-                    }]
-                });
-            }
-
-            return await Event.findAll({
-                include: includeOptions
-            });
+            return await EventRepository.findAllWithOptionalEndConditions(includeEndConditions);
         } catch (e) {
             throw ApiError.database('Error finding all events', e);
         }
@@ -256,13 +176,7 @@ class EventService {
 
     async findCreator(eventId) {
         try {
-            const event = await Event.findByPk(eventId, {
-                include: [{ 
-                    model: require('../model').User, 
-                    as: 'creator' 
-                }]
-            });
-            return event ? event.creator : null;
+            return await EventRepository.findCreator(eventId);
         } catch (e) {
             throw ApiError.database('Error finding event creator', e);
         }
@@ -270,13 +184,7 @@ class EventService {
 
     async findRecipient(eventId) {
         try {
-            const event = await Event.findByPk(eventId, {
-                include: [{ 
-                    model: require('../model').User, 
-                    as: 'recipient' 
-                }]
-            });
-            return event ? event.recipient : null;
+            return await EventRepository.findRecipient(eventId);
         } catch (e) {
             throw ApiError.database('Error finding event recipient', e);
         }
@@ -284,13 +192,8 @@ class EventService {
 
     async findParticipations(eventId) {
         try {
-            const { Participation, User } = require('../model');
-            return await Participation.findAll({
-                where: { eventId: eventId },
-                include: [
-                    { model: User, as: 'user' }
-                ]
-            });
+            const { ParticipationRepository } = require('../repository');
+            return await ParticipationRepository.findByEvent(eventId);
         } catch (e) {
             throw ApiError.database('Error finding event participations', e);
         }
@@ -298,11 +201,8 @@ class EventService {
 
     async calculateBankAmount(eventId) {
         try {
-            const { Participation } = require('../model');
-            const participations = await Participation.findAll({
-                where: { eventId: eventId },
-                attributes: ['deposit']
-            });
+            const { ParticipationRepository } = require('../repository');
+            const participations = await ParticipationRepository.findByEventForCalculation(eventId);
 
             return participations.reduce((total, participation) => {
                 return total + (participation.deposit || 0);

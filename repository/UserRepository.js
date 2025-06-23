@@ -1,5 +1,5 @@
 const BaseRepository = require('./BaseRepository');
-const { User } = require('../model');
+const { User, Account } = require('../model');
 const { Op } = require('sequelize');
 
 class UserRepository extends BaseRepository {
@@ -56,7 +56,7 @@ class UserRepository extends BaseRepository {
         const includeOptions = includeAssociations ? [
             { association: 'createdEvents' },
             { association: 'receivedEvents' },
-            { model: require('../model').Account }
+            { model: Account }
         ] : [];
 
         return await this.findByPk(userId, {

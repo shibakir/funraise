@@ -1,5 +1,5 @@
-const { UserCriterionProgress, User, AchievementCriterion } = require('../model');
 const ApiError = require('../exception/ApiError');
+const { UserCriterionProgressRepository, UserRepository, AchievementCriterionRepository } = require('../repository');
 
 const createUserCriterionProgressSchema  = require("../validation/schema/UserCriterionProgressSchema");
 
@@ -15,17 +15,17 @@ class UserCriterionProgressService {
         try {
             const { userId, achievementId } = data;
 
-            const user = await User.findOne({ id: userId });
+            const user = await UserRepository.findByPk(userId);
             if (!user) {
                 throw Error('User does not exist');
             }
 
-            const achievementCriterion = await AchievementCriterion.findOne({ id: achievementId });
+            const achievementCriterion = await AchievementCriterionRepository.findByPk(achievementId);
             if (!achievementCriterion) {
                 throw Error('Achievement Criterion does not exist');
             }
 
-            const userCriterionProgress = await UserCriterionProgress.create({
+            const userCriterionProgress = await UserCriterionProgressRepository.create({
                 userId: userId,
                 achievementId: achievementId,
             });
@@ -38,12 +38,7 @@ class UserCriterionProgressService {
 
     async findByUserAchievementAndCriterion(userAchievementId, criterionId) {
         try {
-            return await UserCriterionProgress.findOne({
-                where: {
-                    userAchievementId: userAchievementId,
-                    criterionId: criterionId
-                }
-            });
+            return await UserCriterionProgressRepository.findByUserAchievementAndCriterion(userAchievementId, criterionId);
         } catch (e) {
             throw ApiError.badRequest('Error finding user criterion progress', e.message);
         }
@@ -51,9 +46,7 @@ class UserCriterionProgressService {
 
     async findByUserAchievement(userAchievementId) {
         try {
-            return await UserCriterionProgress.findAll({
-                where: { userAchievementId: userAchievementId }
-            });
+            return await UserCriterionProgressRepository.findByUserAchievement(userAchievementId);
         } catch (e) {
             throw ApiError.badRequest('Error finding progress by user achievement', e.message);
         }
@@ -61,13 +54,7 @@ class UserCriterionProgressService {
 
     async findByUserAchievementWithCriteria(userAchievementId) {
         try {
-            return await UserCriterionProgress.findAll({
-                where: { userAchievementId: userAchievementId },
-                include: [{
-                    model: require('../model').AchievementCriterion,
-                    as: 'criterion'
-                }]
-            });
+            return await UserCriterionProgressRepository.findByUserAchievementWithCriteria(userAchievementId);
         } catch (e) {
             throw ApiError.badRequest('Error finding progress with criteria by user achievement', e.message);
         }
@@ -75,12 +62,7 @@ class UserCriterionProgressService {
 
     async createProgress(userAchievementId, criterionId, currentValue = 0, completed = false) {
         try {
-            return await UserCriterionProgress.create({
-                userAchievementId: userAchievementId,
-                criterionId: criterionId,
-                currentValue: currentValue,
-                completed: completed
-            });
+            return await UserCriterionProgressRepository.createProgress(userAchievementId, criterionId, currentValue, completed);
         } catch (e) {
             throw ApiError.badRequest('Error creating user criterion progress', e.message);
         }
@@ -88,14 +70,7 @@ class UserCriterionProgressService {
 
     async updateProgress(progressId, currentValue, completed, completedAt = null) {
         try {
-            return await UserCriterionProgress.update(
-                {
-                    currentValue: currentValue,
-                    completed: completed,
-                    completedAt: completedAt
-                },
-                { where: { id: progressId } }
-            );
+            return await UserCriterionProgressRepository.updateProgress(progressId, currentValue, completed, completedAt);
         } catch (e) {
             throw ApiError.badRequest('Error updating user criterion progress', e.message);
         }
