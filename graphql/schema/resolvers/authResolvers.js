@@ -1,5 +1,7 @@
 const { userService, tokenService, accountService } = require('../../../service');
 const { generateToken, generateRefreshToken, verifyRefreshToken } = require('../../../utils/jwtUtils');
+const createUserSchema = require('../../../validation/schema/UserSchema');
+const { handleServiceError } = require('../../utils/errorHandler');
 const axios = require('axios');
 const crypto = require('crypto');
 
@@ -61,7 +63,7 @@ const authResolvers = {
                 };
             } catch (error) {
                 console.error('Login error:', error);
-                throw new Error(error.message || 'Login failed');
+                handleServiceError(error, 'Login failed');
             }
         },
         
@@ -80,6 +82,11 @@ const authResolvers = {
          */
         register: async (_, { username, email, password }) => {
             try {
+                const { error } = createUserSchema.validate({ username, email, password });
+                if (error) {
+                    throw new Error(`Validation error: ${error.details.map(d => d.message).join(', ')}`);
+                }
+
                 // Create new user account through userService
                 const user = await userService.create({
                     username,
@@ -104,7 +111,7 @@ const authResolvers = {
                 };
             } catch (error) {
                 //console.error('Registration error:', error);
-                throw new Error(error.message || 'Registration failed');
+                handleServiceError(error, 'Registration failed');
             }
         },
 
@@ -197,7 +204,7 @@ const authResolvers = {
                 };
             } catch (error) {
                 //console.error('Discord auth error:', error);
-                throw new Error(error.message || 'Discord authentication failed');
+                handleServiceError(error, 'Discord authentication failed');
             }
         },
 
@@ -247,7 +254,7 @@ const authResolvers = {
                 return authResolvers.Mutation.discordAuth(_, { accessToken: access_token });
             } catch (error) {
                 console.error('Discord auth code error:', error.response?.data || error);
-                throw new Error(error.response?.data?.error_description || 'Discord authentication failed');
+                handleServiceError(error, error.response?.data?.error_description || 'Discord authentication failed');
             }
         },
 
@@ -454,7 +461,7 @@ const authResolvers = {
                 } else if (error.message.includes('User not found')) {
                     throw new Error('User account not found');
                 } else {
-                    throw new Error(error.message || 'Token refresh failed');
+                    handleServiceError(error, 'Token refresh failed');
                 }
             }
         },
@@ -479,7 +486,7 @@ const authResolvers = {
                 return true;
             } catch (error) {
                 console.error('Logout error:', error);
-                throw new Error(error.message || 'Logout failed');
+                handleServiceError(error, 'Logout failed');
             }
         },
 
@@ -499,7 +506,7 @@ const authResolvers = {
                 return user;
             } catch (error) {
                 console.error('User activation error:', error);
-                throw new Error(error.message || 'User activation failed');
+                handleServiceError(error, 'User activation failed');
             }
         },
 
@@ -519,7 +526,7 @@ const authResolvers = {
                 return result;
             } catch (error) {
                 console.error('Resend activation email error:', error);
-                throw new Error(error.message || 'Failed to resend activation email');
+                handleServiceError(error, 'Failed to resend activation email');
             }
         }
     }

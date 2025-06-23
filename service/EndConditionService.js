@@ -2,17 +2,9 @@ const ApiError = require('../exception/ApiError');
 const { EndConditionRepository } = require('../repository');
 const Joi = require("joi");
 
-const createEndConditionSchema = require("../validation/schema/EndConditionSchema");
-
 class EndConditionService {
 
     async create(data) {
-
-        const { error } = createEndConditionSchema.validate(data);
-        if (error) {
-            throw ApiError.badRequest(error.details[0].message);
-        }
-
         try {
             const { name, operator, value, endConditionId } = data;
 

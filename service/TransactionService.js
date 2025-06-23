@@ -1,17 +1,10 @@
 const ApiError = require('../exception/ApiError');
-const { TransactionRepository, UserRepository } = require('../repository');
-const createTransactionSchema = require("../validation/schema/TransactionSchema");
+const { TransactionRepository } = require('../repository');
 const userService = require("./UserService");
 
 class TransactionService {
 
     async create(data) {
-
-        const { error } = createTransactionSchema.validate(data);
-        if (error) {
-            throw ApiError.badRequest(error.details[0].message);
-        }
-
         const { amount, type, userId } = data;
 
         try {

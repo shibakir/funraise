@@ -1,17 +1,9 @@
 const ApiError = require('../exception/ApiError');
 const { UserCriterionProgressRepository, UserRepository, AchievementCriterionRepository } = require('../repository');
 
-const createUserCriterionProgressSchema  = require("../validation/schema/UserCriterionProgressSchema");
-
 class UserCriterionProgressService {
 
     async create(data) {
-
-        const { error } = createUserCriterionProgressSchema.validate(data);
-        if (error) {
-            throw ApiError.badRequest(error.details[0].message);
-        }
-
         try {
             const { userId, achievementId } = data;
 

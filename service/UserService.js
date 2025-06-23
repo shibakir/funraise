@@ -1,5 +1,4 @@
 const ApiError = require('../exception/ApiError');
-const createUserSchema = require("../validation/schema/UserSchema");
 const { initializeUser, onUserBankUpdated } = require('../utils/achievement');
 const { UserRepository } = require('../repository');
 const { Op } = require('sequelize');
@@ -11,12 +10,6 @@ const { AUTH_CONFIG, VALIDATION_LIMITS, TRANSACTION_TYPES } = require('../consta
 class UserService {
 
     async create(data) {
-        
-        const { error } = createUserSchema.validate(data);
-        if (error) {
-            throw ApiError.validation('Validation failed', error.details.map(d => d.message));
-        }
-
         try {
             // Check if user already exists
             const existingUser = await UserRepository.findByEmailOrUsername(data.email, data.username);

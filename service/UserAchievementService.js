@@ -1,17 +1,9 @@
 const ApiError = require('../exception/ApiError');
 const { UserAchievementRepository, UserRepository, AchievementRepository } = require('../repository');
 
-const createUserAchievement  = require("../validation/schema/UserAchievement");
-
 class UserAchievementService {
 
     async create(data) {
-
-        const { error } = createUserAchievement.validate(data);
-        if (error) {
-            throw ApiError.validation('Validation failed', error.details.map(d => d.message));
-        }
-
         try {
             const { userId, achievementId } = data;
 

@@ -1,17 +1,9 @@
 const ApiError = require('../exception/ApiError');
 const { AchievementCriterionRepository } = require('../repository');
 
-const createAchievementCriterionSchema  = require("../validation/schema/AchievementCriterionSchema");
-
 class AchievementCriterionService {
 
     async create(data) {
-
-        const { error } = createAchievementCriterionSchema.validate(data);
-        if (error) {
-            throw ApiError.badRequest(error.details[0].message);
-        }
-
         try {
             const { type, value } = data;
 

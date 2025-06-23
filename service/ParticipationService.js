@@ -1,6 +1,5 @@
 const ApiError = require('../exception/ApiError');
 const { ParticipationRepository } = require('../repository');
-const createParticipationSchema = require("../validation/schema/ParticipationSchema");
 
 const EventCompletionTracker = require('../utils/achievement/EventCompletionTracker');
 const eventConditions = require('../utils/eventCondition');
@@ -8,12 +7,6 @@ const eventConditions = require('../utils/eventCondition');
 class ParticipationService {
 
     async create(data) {
-
-        const { error } = createParticipationSchema.validate(data);
-        if (error) {
-            throw ApiError.badRequest(error.details[0].message);
-        }
-
         const { deposit, userId, eventId } = data;
 
         try {

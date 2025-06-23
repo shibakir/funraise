@@ -1,7 +1,6 @@
 const ApiError = require('../exception/ApiError');
 const { EventRepository } = require('../repository');
 
-const createEventSchema = require('../validation/schema/EventSchema');
 const EventEndConditionService = require('./EventEndConditionService');
 const { onEventCreated } = require('../utils/achievement');
 const eventConditions = require('../utils/eventCondition');
@@ -11,11 +10,6 @@ const { FILE_LIMITS, EVENT_TYPES, CONDITION_TYPES } = require('../constants');
 class EventService {
 
     async create(data) {
-        const { error } = createEventSchema.validate(data);
-        if (error) {
-            throw ApiError.badRequest(error.details[0].message);
-        }
-
         try {
             const { name, description, type, imageFile, userId, recipientId: inputRecipientId, eventEndConditionGroups } = data;
 

@@ -1,5 +1,7 @@
 const { eventService, userService, participationService, eventEndConditionService } = require('../../../service');
 const { pubsub, SUBSCRIPTION_EVENTS } = require('../../pubsub');
+const createEventSchema = require('../../../validation/schema/EventSchema');
+const { handleServiceError } = require('../../utils/errorHandler');
 
 /**
  * GraphQL resolvers for Event-related operations
@@ -57,6 +59,11 @@ const eventResolvers = {
          */
         createEvent: async (_, { input }) => {
             try {
+                const { error } = createEventSchema.validate(input);
+                if (error) {
+                    throw new Error(`Validation error: ${error.details.map(d => d.message).join(', ')}`);
+                }
+
                 const event = await eventService.create(input);
                 
                 // Retrieve complete event information with all associations
@@ -70,7 +77,7 @@ const eventResolvers = {
                 return fullEvent;
             } catch (error) {
                 console.error('Error creating event:', error);
-                throw new Error(error.message || 'Failed to create event');
+                handleServiceError(error, 'Failed to create event');
             }
         }
     },

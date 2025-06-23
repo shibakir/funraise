@@ -1,5 +1,8 @@
 const { participationService, transactionService, userService, eventService } = require('../../../service');
 const { pubsub, SUBSCRIPTION_EVENTS } = require('../../pubsub');
+const createParticipationSchema = require('../../../validation/schema/ParticipationSchema');
+const createTransactionSchema = require('../../../validation/schema/TransactionSchema');
+const { handleServiceError } = require('../../utils/errorHandler');
 
 const participationResolvers = {
     Query: {
@@ -22,18 +25,27 @@ const participationResolvers = {
         }
     },
     Mutation: {
-
         createTransaction: async (_, { input }) => {
             try {
+                const { error } = createTransactionSchema.validate(input);
+                if (error) {
+                    throw new Error(`Validation error: ${error.details.map(d => d.message).join(', ')}`);
+                }
+
                 const transaction = await transactionService.create(input);
                 return transaction;
             } catch (error) {
                 console.error('Error creating transaction:', error);
-                throw new Error(error.message || 'Failed to create transaction');
+                handleServiceError(error, 'Failed to create transaction');
             }
         },
         upsertParticipation: async (_, { input }) => {
             try {
+                const { error } = createParticipationSchema.validate(input);
+                if (error) {
+                    throw new Error(`Validation error: ${error.details.map(d => d.message).join(', ')}`);
+                }
+
                 const { userId, eventId, deposit } = input;
                 
                 // Check if participation exists
@@ -110,7 +122,7 @@ const participationResolvers = {
                 };
             } catch (error) {
                 console.error('Error upserting participation:', error);
-                throw new Error(error.message || 'Failed to upsert participation');
+                handleServiceError(error, 'Failed to upsert participation');
             }
         }
     },
