@@ -174,7 +174,7 @@ class UserService {
                     //console.log('Resent activation link for testing (email failed):', activationUrl);
                 }
                 
-                throw ApiError.internalServer('Failed to send activation email');
+                throw ApiError.internal('Failed to send activation email');
             }
         } catch (e) {
             if (e instanceof ApiError) {

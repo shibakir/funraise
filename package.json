@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "reset-db": "node script/resetDb.js",
     "seed": "node script/runSeeders.js",
     "seed:achievements": "node script/runSeeders.js achievements",
@@ -51,6 +53,22 @@
   "devDependencies": {
     "@2fd/graphdoc": "^2.4.0",
     "http-server": "^14.1.1",
-    "knip": "^5.61.2"
+    "knip": "^5.61.2",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4",
+    "@babel/core": "^7.24.0",
+    "@babel/preset-env": "^7.24.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "graphql/schema/resolvers/**/*.js",
+      "service/**/*.js",
+      "utils/**/*.js"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.js"
+    ],
+    "setupFilesAfterEnv": ["<rootDir>/__tests__/setup.js"]
   }
 }
