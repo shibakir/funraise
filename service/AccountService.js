@@ -1,18 +1,11 @@
-const { Account } = require('../model');
 const ApiError = require('../exception/ApiError');
+const { AccountRepository } = require('../repository');
 
 class AccountService {
 
     async findByProviderAndAccountId(provider, providerAccountId) {
         try {
-            const { User } = require('../model');
-            return await Account.findOne({
-                where: {
-                    provider: provider,
-                    providerAccountId: providerAccountId
-                },
-                include: [{ model: User }]
-            });
+            return await AccountRepository.findByProviderAndAccountId(provider, providerAccountId);
         } catch (e) {
             throw ApiError.database('Error finding account by provider and account ID', e);
         }
@@ -20,12 +13,7 @@ class AccountService {
 
     async findByUserAndProvider(userId, provider) {
         try {
-            return await Account.findOne({
-                where: {
-                    userId: userId,
-                    provider: provider
-                }
-            });
+            return await AccountRepository.findByUserAndProvider(userId, provider);
         } catch (e) {
             throw ApiError.database('Error finding account by user and provider', e);
         }
@@ -33,7 +21,7 @@ class AccountService {
 
     async create(accountData) {
         try {
-            return await Account.create(accountData);
+            return await AccountRepository.create(accountData);
         } catch (e) {
             throw ApiError.database('Error creating account', e);
         }
@@ -41,13 +29,13 @@ class AccountService {
 
     async update(accountId, updateData) {
         try {
-            const account = await Account.findByPk(accountId);
+            const account = await AccountRepository.findByPk(accountId);
             if (!account) {
                 throw ApiError.notFound('Account not found');
             }
 
-            await account.update(updateData);
-            return account;
+            await AccountRepository.update(accountId, updateData);
+            return await AccountRepository.findByPk(accountId);
         } catch (e) {
             if (e instanceof ApiError) {
                 throw e;
@@ -58,18 +46,7 @@ class AccountService {
 
     async updateByProviderAndAccountId(provider, providerAccountId, updateData) {
         try {
-            const result = await Account.update(updateData, {
-                where: {
-                    provider: provider,
-                    providerAccountId: providerAccountId
-                }
-            });
-
-            if (result[0] === 0) {
-                throw ApiError.notFound('Account not found');
-            }
-
-            return await this.findByProviderAndAccountId(provider, providerAccountId);
+            return await AccountRepository.updateByProviderAndAccountId(provider, providerAccountId, updateData);
         } catch (e) {
             if (e instanceof ApiError) {
                 throw e;

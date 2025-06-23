@@ -1,7 +1,7 @@
-const { User } = require('../model');
 const ApiError = require('../exception/ApiError');
 const createUserSchema = require("../validation/schema/UserSchema");
 const { initializeUser, onUserBankUpdated } = require('../utils/achievement');
+const { UserRepository } = require('../repository');
 const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
@@ -19,14 +19,7 @@ class UserService {
 
         try {
             // Check if user already exists
-            const existingUser = await User.findOne({
-                where: {
-                    [Op.or]: [
-                        { email: data.email },
-                        { username: data.username }
-                    ]
-                }
-            });
+            const existingUser = await UserRepository.findByEmailOrUsername(data.email, data.username);
 
             if (existingUser) {
                 const conflictDetails = [];
@@ -45,7 +38,7 @@ class UserService {
             // Generate activation link
             const activationLink = crypto.randomBytes(32).toString('hex');
 
-            const user = await User.create({
+            const user = await UserRepository.create({
                 username: data.username,
                 password: hashedPassword,
                 email: data.email,
@@ -89,9 +82,7 @@ class UserService {
             }
 
             // Find user by activation link
-            const user = await User.findOne({
-                where: { activationLink: activationLink }
-            });
+            const user = await UserRepository.findByActivationLink(activationLink);
 
             if (!user) {
                 throw ApiError.badRequest('Invalid activation link');
@@ -102,20 +93,9 @@ class UserService {
             }
 
             // Activate user and clear activation link
-            await User.update(
-                { 
-                    isActivated: true, 
-                    activationLink: null 
-                },
-                { where: { id: user.id } }
-            );
+            await UserRepository.activate(user.id);
 
-            return await User.findByPk(user.id, {
-                include: [
-                    { association: 'createdEvents' },
-                    { association: 'receivedEvents' }
-                ]
-            });
+            return await UserRepository.findByIdWithAssociations(user.id);
         } catch (e) {
             if (e instanceof ApiError) {
                 throw e;
@@ -131,9 +111,7 @@ class UserService {
             }
 
             // Find user by email
-            const user = await User.findOne({
-                where: { email: email }
-            });
+            const user = await UserRepository.findByEmail(email);
 
             if (!user) {
                 throw ApiError.notFound('User with this email not found');
@@ -146,10 +124,7 @@ class UserService {
             if (!user.activationLink) {
                 // Generate new activation link if it doesn't exist
                 const activationLink = crypto.randomBytes(32).toString('hex');
-                await User.update(
-                    { activationLink: activationLink },
-                    { where: { id: user.id } }
-                );
+                await UserRepository.updateActivationLink(user.id, activationLink);
                 user.activationLink = activationLink;
             }
 
@@ -201,10 +176,7 @@ class UserService {
                 throw ApiError.businessLogic('Amount must be positive', ['Amount cannot be zero or negative']);
             }
 
-            const user = await User.findOne({
-                where: { id: userId },
-                attributes: ['balance'],
-            });
+            const user = await UserRepository.findByIdWithBalance(userId);
 
             if (!user) {
                 throw ApiError.notFound('User not found');
@@ -241,10 +213,7 @@ class UserService {
                 ]);
             }
 
-            await User.update(
-                { balance: newBalance },
-                { where: { id: userId } }
-            );
+            await UserRepository.updateBalance(userId, newBalance);
 
             // Track user bank updates for achievements
             try {
@@ -265,9 +234,7 @@ class UserService {
 
     async getAllUsers() {
         try {
-            return await User.findAll({ 
-                attributes: ['id'] 
-            });
+            return await UserRepository.findAllMinimal();
         } catch (e) {
             throw ApiError.badRequest('Error getting all users', e.message);
         }
@@ -275,9 +242,7 @@ class UserService {
 
     async findByIdWithBalance(userId) {
         try {
-            return await User.findByPk(userId, { 
-                attributes: ['id', 'balance'] 
-            });
+            return await UserRepository.findByIdWithBalance(userId);
         } catch (e) {
             throw ApiError.badRequest('Error finding user with balance', e.message);
         }
@@ -285,7 +250,7 @@ class UserService {
 
     async update(id, data) {
         try {
-            const user = await User.findByPk(id);
+            const user = await UserRepository.findByPk(id);
             if (!user) {
                 throw ApiError.badRequest('User not found');
             }
@@ -306,13 +271,8 @@ class UserService {
                 }
 
                 // check if username is already taken
-                const existingUser = await User.findOne({
-                    where: { 
-                        username: data.username,
-                        id: { [Op.ne]: id } 
-                    }
-                });
-                if (existingUser) {
+                const existingUser = await UserRepository.findByUsername(data.username);
+                if (existingUser && existingUser.id !== id) {
                     throw ApiError.badRequest('Username already exists');
                 }
                 updateData.username = data.username;
@@ -327,13 +287,8 @@ class UserService {
                 }
 
                 // check if email is already taken
-                const existingUser = await User.findOne({
-                    where: { 
-                        email: data.email,
-                        id: { [Op.ne]: id } 
-                    }
-                });
-                if (existingUser) {
+                const existingUser = await UserRepository.findByEmail(data.email);
+                if (existingUser && existingUser.id !== id) {
                     throw ApiError.badRequest('Email already exists');
                 }
                 updateData.email = data.email;
@@ -361,16 +316,11 @@ class UserService {
 
             // update user
             if (Object.keys(updateData).length > 0) {
-                await User.update(updateData, { where: { id } });
+                await UserRepository.update(id, updateData);
             }
 
             // return updated user
-            return await User.findByPk(id, {
-                include: [
-                    { association: 'createdEvents' },
-                    { association: 'receivedEvents' }
-                ]
-            });
+            return await UserRepository.findByIdWithAssociations(id);
         } catch (e) {
             throw ApiError.badRequest(e.message || 'Failed to update user');
         }
@@ -378,21 +328,7 @@ class UserService {
 
     async findById(userId, includeAssociations = true) {
         try {
-            const includeOptions = includeAssociations ? [
-                { association: 'createdEvents' },
-                { association: 'receivedEvents' },
-                { model: require('../model').Account }
-            ] : [];
-
-            const user = await User.findByPk(userId, {
-                include: includeOptions
-            });
-
-            if (!user) {
-                throw ApiError.notFound('User not found');
-            }
-
-            return user;
+            return await UserRepository.findByIdWithAssociations(userId, includeAssociations);
         } catch (e) {
             if (e instanceof ApiError) {
                 throw e;
@@ -403,14 +339,7 @@ class UserService {
 
     async findAll(includeAssociations = true) {
         try {
-            const includeOptions = includeAssociations ? [
-                { association: 'createdEvents' },
-                { association: 'receivedEvents' }
-            ] : [];
-
-            return await User.findAll({
-                include: includeOptions
-            });
+            return await UserRepository.findAllWithAssociations(includeAssociations);
         } catch (e) {
             throw ApiError.database('Error finding all users', e);
         }
@@ -418,19 +347,7 @@ class UserService {
 
     async searchByUsername(username, includeAssociations = true) {
         try {
-            const includeOptions = includeAssociations ? [
-                { association: 'createdEvents' },
-                { association: 'receivedEvents' }
-            ] : [];
-
-            return await User.findAll({
-                where: {
-                    username: {
-                        [Op.like]: `%${username}%`
-                    }
-                },
-                include: includeOptions
-            });
+            return await UserRepository.searchByUsername(username, includeAssociations);
         } catch (e) {
             throw ApiError.database('Error searching users by username', e);
         }
@@ -438,10 +355,8 @@ class UserService {
 
     async findAccounts(userId) {
         try {
-            const { Account } = require('../model');
-            return await Account.findAll({
-                where: { userId: userId }
-            });
+            const { AccountRepository } = require('../repository');
+            return await AccountRepository.findByUserId(userId);
         } catch (e) {
             throw ApiError.database('Error finding user accounts', e);
         }
@@ -449,10 +364,7 @@ class UserService {
 
     async findByEmail(email) {
         try {
-            const user = await User.findOne({
-                where: { email: email }
-            });
-            return user;
+            return await UserRepository.findByEmail(email);
         } catch (e) {
             throw ApiError.database('Error finding user by email', e);
         }
@@ -460,20 +372,7 @@ class UserService {
 
     async findByIdWithAccountsOnly(userId) {
         try {
-            const { Account } = require('../model');
-            const user = await User.findByPk(userId, {
-                include: [
-                    { association: 'createdEvents' },
-                    { association: 'receivedEvents' },
-                    { model: Account }
-                ]
-            });
-
-            if (!user) {
-                throw ApiError.notFound('User not found');
-            }
-
-            return user;
+            return await UserRepository.findByIdWithAssociations(userId, true);
         } catch (e) {
             if (e instanceof ApiError) {
                 throw e;
