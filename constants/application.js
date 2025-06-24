@@ -10,7 +10,7 @@ const FILE_LIMITS = {
 
 // Authentication
 const AUTH_CONFIG = {
-    JWT_EXPIRES_IN: '15m',           // Access token expiration
+    JWT_EXPIRES_IN: '30m',           // Access token expiration
     REFRESH_EXPIRES_IN: '7d',        // Refresh token expiration
     BCRYPT_SALT_ROUNDS: 12           // Password hashing rounds
 };

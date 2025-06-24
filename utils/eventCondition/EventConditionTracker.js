@@ -146,7 +146,7 @@ class EventConditionTracker {
      * @returns {number|boolean} Current value
      */
     async getCurrentValue(endCondition, eventId) {
-        const conditionType = endCondition.name; // Теперь это enum ConditionType
+        const conditionType = endCondition.name;
 
         switch (conditionType) {
             case CONDITION_TYPES.PARTICIPATION:

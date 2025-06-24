@@ -1,5 +1,6 @@
 const BaseRepository = require('./BaseRepository');
 const { Account, User } = require('../model');
+const ApiError = require('../exception/ApiError');
 
 class AccountRepository extends BaseRepository {
     constructor() {
@@ -32,7 +33,6 @@ class AccountRepository extends BaseRepository {
         });
 
         if (result[0] === 0) {
-            const ApiError = require('../exception/ApiError');
             throw ApiError.notFound('Account not found');
         }
 
