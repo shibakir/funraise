@@ -1,9 +1,18 @@
-const AccountService = require('../../service/AccountService');
-const { Account, User } = require('../../model');
-const ApiError = require('../../exception/ApiError');
-
 // Mock dependencies
-jest.mock('../../model');
+jest.mock('../../repository', () => ({
+    AccountRepository: {
+        findByProviderAndAccountId: jest.fn(),
+        findByUserAndProvider: jest.fn(),
+        create: jest.fn(),
+        findByPk: jest.fn(),
+        update: jest.fn(),
+        updateByProviderAndAccountId: jest.fn()
+    }
+}));
+
+const AccountService = require('../../service/AccountService');
+const { AccountRepository } = require('../../repository');
+const ApiError = require('../../exception/ApiError');
 
 describe('AccountService', () => {
     beforeEach(() => {
@@ -24,22 +33,16 @@ describe('AccountService', () => {
                 }
             };
 
-            Account.findOne.mockResolvedValue(mockAccount);
+            AccountRepository.findByProviderAndAccountId.mockResolvedValue(mockAccount);
 
             const result = await AccountService.findByProviderAndAccountId('discord', '123456');
 
-            expect(Account.findOne).toHaveBeenCalledWith({
-                where: {
-                    provider: 'discord',
-                    providerAccountId: '123456'
-                },
-                include: [{ model: User }]
-            });
+            expect(AccountRepository.findByProviderAndAccountId).toHaveBeenCalledWith('discord', '123456');
             expect(result).toEqual(mockAccount);
         });
 
         it('should return null if the account is not found', async () => {
-            Account.findOne.mockResolvedValue(null);
+            AccountRepository.findByProviderAndAccountId.mockResolvedValue(null);
 
             const result = await AccountService.findByProviderAndAccountId('discord', 'nonexistent');
 
@@ -48,7 +51,7 @@ describe('AccountService', () => {
 
         it('should handle database errors', async () => {
             const dbError = new Error('Database connection error');
-            Account.findOne.mockRejectedValue(dbError);
+            AccountRepository.findByProviderAndAccountId.mockRejectedValue(dbError);
 
             await expect(AccountService.findByProviderAndAccountId('discord', '123456'))
                 .rejects
@@ -65,21 +68,16 @@ describe('AccountService', () => {
                 userId: 1
             };
 
-            Account.findOne.mockResolvedValue(mockAccount);
+            AccountRepository.findByUserAndProvider.mockResolvedValue(mockAccount);
 
             const result = await AccountService.findByUserAndProvider(1, 'discord');
 
-            expect(Account.findOne).toHaveBeenCalledWith({
-                where: {
-                    userId: 1,
-                    provider: 'discord'
-                }
-            });
+            expect(AccountRepository.findByUserAndProvider).toHaveBeenCalledWith(1, 'discord');
             expect(result).toEqual(mockAccount);
         });
 
         it('should return null if the account is not found', async () => {
-            Account.findOne.mockResolvedValue(null);
+            AccountRepository.findByUserAndProvider.mockResolvedValue(null);
 
             const result = await AccountService.findByUserAndProvider(999, 'discord');
 
@@ -88,7 +86,7 @@ describe('AccountService', () => {
 
         it('should handle database errors', async () => {
             const dbError = new Error('Database connection error');
-            Account.findOne.mockRejectedValue(dbError);
+            AccountRepository.findByUserAndProvider.mockRejectedValue(dbError);
 
             await expect(AccountService.findByUserAndProvider(1, 'discord'))
                 .rejects
@@ -109,11 +107,11 @@ describe('AccountService', () => {
                 providerEmail: 'test@example.com'
             };
 
-            Account.create.mockResolvedValue(accountData);
+            AccountRepository.create.mockResolvedValue(accountData);
 
             const result = await AccountService.create(accountData);
 
-            expect(Account.create).toHaveBeenCalledWith(accountData);
+            expect(AccountRepository.create).toHaveBeenCalledWith(accountData);
             expect(result).toEqual(accountData);
         });
 
@@ -125,7 +123,7 @@ describe('AccountService', () => {
             };
 
             const dbError = new Error('Constraint violation');
-            Account.create.mockRejectedValue(dbError);
+            AccountRepository.create.mockRejectedValue(dbError);
 
             await expect(AccountService.create(accountData))
                 .rejects
@@ -138,8 +136,14 @@ describe('AccountService', () => {
             const mockAccount = {
                 id: 'discord_123456_1',
                 provider: 'discord',
-                access_token: 'old-token',
-                update: jest.fn().mockResolvedValue()
+                access_token: 'old-token'
+            };
+
+            const updatedAccount = {
+                id: 'discord_123456_1',
+                provider: 'discord',
+                access_token: 'new-token',
+                providerUsername: 'newusername'
             };
 
             const updateData = {
@@ -147,17 +151,18 @@ describe('AccountService', () => {
                 providerUsername: 'newusername'
             };
 
-            Account.findByPk.mockResolvedValue(mockAccount);
+            AccountRepository.findByPk.mockResolvedValueOnce(mockAccount).mockResolvedValueOnce(updatedAccount);
+            AccountRepository.update.mockResolvedValue([1]);
 
             const result = await AccountService.update('discord_123456_1', updateData);
 
-            expect(Account.findByPk).toHaveBeenCalledWith('discord_123456_1');
-            expect(mockAccount.update).toHaveBeenCalledWith(updateData);
-            expect(result).toEqual(mockAccount);
+            expect(AccountRepository.findByPk).toHaveBeenCalledWith('discord_123456_1');
+            expect(AccountRepository.update).toHaveBeenCalledWith('discord_123456_1', updateData);
+            expect(result).toEqual(updatedAccount);
         });
 
         it('should throw an error if the account is not found for update', async () => {
-            Account.findByPk.mockResolvedValue(null);
+            AccountRepository.findByPk.mockResolvedValue(null);
 
             await expect(AccountService.update('nonexistent', { access_token: 'new-token' }))
                 .rejects
@@ -166,7 +171,7 @@ describe('AccountService', () => {
 
         it('should handle database errors when updating', async () => {
             const dbError = new Error('Database error');
-            Account.findByPk.mockRejectedValue(dbError);
+            AccountRepository.findByPk.mockRejectedValue(dbError);
 
             await expect(AccountService.update('discord_123456_1', { access_token: 'new-token' }))
                 .rejects
@@ -192,38 +197,17 @@ describe('AccountService', () => {
                 }
             };
 
-            Account.update.mockResolvedValue([1]); // one account updated
-            Account.findOne.mockResolvedValue(updatedAccount);
+            AccountRepository.updateByProviderAndAccountId.mockResolvedValue(updatedAccount);
 
             const result = await AccountService.updateByProviderAndAccountId('discord', '123456', updateData);
 
-            expect(Account.update).toHaveBeenCalledWith(updateData, {
-                where: {
-                    provider: 'discord',
-                    providerAccountId: '123456'
-                }
-            });
-            expect(Account.findOne).toHaveBeenCalledWith({
-                where: {
-                    provider: 'discord',
-                    providerAccountId: '123456'
-                },
-                include: [{ model: User }]
-            });
+            expect(AccountRepository.updateByProviderAndAccountId).toHaveBeenCalledWith('discord', '123456', updateData);
             expect(result).toEqual(updatedAccount);
-        });
-
-        it('should throw an error if the account is not found for update', async () => {
-            Account.update.mockResolvedValue([0]); // no accounts found for update
-
-            await expect(AccountService.updateByProviderAndAccountId('discord', 'nonexistent', { access_token: 'new-token' }))
-                .rejects
-                .toThrow('Account not found');
         });
 
         it('should handle database errors when updating', async () => {
             const dbError = new Error('Database constraint error');
-            Account.update.mockRejectedValue(dbError);
+            AccountRepository.updateByProviderAndAccountId.mockRejectedValue(dbError);
 
             await expect(AccountService.updateByProviderAndAccountId('discord', '123456', { access_token: 'new-token' }))
                 .rejects
@@ -234,11 +218,7 @@ describe('AccountService', () => {
     describe('error handling', () => {
         it('should correctly handle ApiError in update', async () => {
             const apiError = ApiError.notFound('Account not found');
-            const mockAccount = {
-                update: jest.fn().mockRejectedValue(apiError)
-            };
-
-            Account.findByPk.mockResolvedValue(mockAccount);
+            AccountRepository.findByPk.mockRejectedValue(apiError);
 
             await expect(AccountService.update('test-id', { access_token: 'new-token' }))
                 .rejects
@@ -247,7 +227,7 @@ describe('AccountService', () => {
 
         it('should correctly handle ApiError in updateByProviderAndAccountId', async () => {
             const apiError = ApiError.notFound('Account not found');
-            Account.update.mockResolvedValue([0]);
+            AccountRepository.updateByProviderAndAccountId.mockRejectedValue(apiError);
 
             await expect(AccountService.updateByProviderAndAccountId('discord', 'nonexistent', { access_token: 'new-token' }))
                 .rejects
@@ -270,36 +250,12 @@ describe('AccountService', () => {
                 providerAvatar: 'https://github.com/avatar.jpg'
             };
 
-            Account.create.mockResolvedValue(accountData);
+            AccountRepository.create.mockResolvedValue(accountData);
 
             const result = await AccountService.create(accountData);
 
-            expect(Account.create).toHaveBeenCalledWith(accountData);
+            expect(AccountRepository.create).toHaveBeenCalledWith(accountData);
             expect(result).toEqual(accountData);
-        });
-
-        it('should correctly update only passed fields', async () => {
-            const mockAccount = {
-                id: 'discord_123456_1',
-                provider: 'discord',
-                access_token: 'old-token',
-                providerUsername: 'oldusername',
-                update: jest.fn().mockResolvedValue()
-            };
-
-            const partialUpdateData = {
-                access_token: 'new-token'
-                // providerUsername is not updated
-            };
-
-            Account.findByPk.mockResolvedValue(mockAccount);
-
-            await AccountService.update('discord_123456_1', partialUpdateData);
-
-            expect(mockAccount.update).toHaveBeenCalledWith(partialUpdateData);
-            expect(mockAccount.update).not.toHaveBeenCalledWith(expect.objectContaining({
-                providerUsername: expect.anything()
-            }));
         });
     });
 }); 

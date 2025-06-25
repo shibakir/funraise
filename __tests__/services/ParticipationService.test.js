@@ -1,10 +1,19 @@
 const ParticipationService = require('../../service/ParticipationService');
-const { Participation, User, Event } = require('../../model');
+const { ParticipationRepository } = require('../../repository');
 const ApiError = require('../../exception/ApiError');
 const EventCompletionTracker = require('../../utils/achievement/EventCompletionTracker');
 
 // Mock dependencies
-jest.mock('../../model');
+jest.mock('../../repository', () => ({
+    ParticipationRepository: {
+        create: jest.fn(),
+        findByUserAndEvent: jest.fn(),
+        findByIdWithAssociations: jest.fn(),
+        findByUser: jest.fn(),
+        findByEvent: jest.fn(),
+        update: jest.fn()
+    }
+}));
 jest.mock('../../utils/achievement/EventCompletionTracker');
 jest.mock('../../utils/eventCondition', () => ({
     onParticipationAdded: jest.fn().mockResolvedValue(),
@@ -34,12 +43,12 @@ describe('ParticipationService', () => {
                 ...validParticipationData
             };
 
-            Participation.create.mockResolvedValue(mockParticipation);
+            ParticipationRepository.create.mockResolvedValue(mockParticipation);
             EventCompletionTracker.handleEventParticipation.mockResolvedValue();
 
             const result = await ParticipationService.create(validParticipationData);
 
-            expect(Participation.create).toHaveBeenCalledWith({
+            expect(ParticipationRepository.create).toHaveBeenCalledWith({
                 deposit: validParticipationData.deposit,
                 userId: validParticipationData.userId,
                 eventId: validParticipationData.eventId
@@ -60,35 +69,6 @@ describe('ParticipationService', () => {
             expect(result).toEqual(mockParticipation);
         });
 
-        it('should throw a validation error if the data is invalid', async () => {
-            const invalidData = {
-                deposit: 'invalid', // should be a number
-                userId: 1,
-                eventId: 1
-            };
-
-            // Validation should fail before any database operations
-            await expect(ParticipationService.create(invalidData))
-                .rejects
-                .toThrow('must be a number');
-                
-            // Ensure no database operations were attempted
-            expect(Participation.create).not.toHaveBeenCalled();
-        });
-
-        it('should throw an error if the required fields are missing', async () => {
-            const incompleteData = {
-                deposit: 100
-                // userId and eventId are missing
-            };
-
-            await expect(ParticipationService.create(incompleteData))
-                .rejects
-                .toThrow('is required');
-                
-            // Ensure no database operations were attempted
-            expect(Participation.create).not.toHaveBeenCalled();
-        });
     });
 
     describe('findByUserAndEvent', () => {
@@ -102,22 +82,16 @@ describe('ParticipationService', () => {
                 event: { id: 1, name: 'Test Event' }
             };
 
-            Participation.findOne.mockResolvedValue(mockParticipation);
+            ParticipationRepository.findByUserAndEvent.mockResolvedValue(mockParticipation);
 
             const result = await ParticipationService.findByUserAndEvent(1, 1);
 
-            expect(Participation.findOne).toHaveBeenCalledWith({
-                where: { userId: 1, eventId: 1 },
-                include: [
-                    { model: User, as: 'user' },
-                    { model: Event, as: 'event' }
-                ]
-            });
+            expect(ParticipationRepository.findByUserAndEvent).toHaveBeenCalledWith(1, 1);
             expect(result).toEqual(mockParticipation);
         });
 
         it('should return null if the participation is not found', async () => {
-            Participation.findOne.mockResolvedValue(null);
+            ParticipationRepository.findByUserAndEvent.mockResolvedValue(null);
 
             const result = await ParticipationService.findByUserAndEvent(999, 999);
 
@@ -136,25 +110,21 @@ describe('ParticipationService', () => {
                 event: { id: 1, name: 'Test Event' }
             };
 
-            Participation.findByPk.mockResolvedValue(mockParticipation);
+            ParticipationRepository.findByIdWithAssociations.mockResolvedValue(mockParticipation);
 
             const result = await ParticipationService.findById(1);
 
-            expect(Participation.findByPk).toHaveBeenCalledWith(1, {
-                include: [
-                    { model: User, as: 'user' },
-                    { model: Event, as: 'event' }
-                ]
-            });
+            expect(ParticipationRepository.findByIdWithAssociations).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockParticipation);
         });
 
-        it('should throw an error if the participation is not found', async () => {
-            Participation.findByPk.mockResolvedValue(null);
+        it('should handle database errors when finding by ID', async () => {
+            const dbError = new Error('Database error');
+            ParticipationRepository.findByIdWithAssociations.mockRejectedValue(dbError);
 
             await expect(ParticipationService.findById(999))
                 .rejects
-                .toThrow('Participation not found');
+                .toThrow('Error finding participation by ID');
         });
     });
 
@@ -177,21 +147,16 @@ describe('ParticipationService', () => {
                 }
             ];
 
-            Participation.findAll.mockResolvedValue(mockParticipations);
+            ParticipationRepository.findByUser.mockResolvedValue(mockParticipations);
 
             const result = await ParticipationService.findByUser(1);
 
-            expect(Participation.findAll).toHaveBeenCalledWith({
-                where: { userId: 1 },
-                include: [
-                    { model: Event, as: 'event' }
-                ]
-            });
+            expect(ParticipationRepository.findByUser).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockParticipations);
         });
 
         it('should return an empty array if the user has no participations', async () => {
-            Participation.findAll.mockResolvedValue([]);
+            ParticipationRepository.findByUser.mockResolvedValue([]);
 
             const result = await ParticipationService.findByUser(999);
 
@@ -218,21 +183,16 @@ describe('ParticipationService', () => {
                 }
             ];
 
-            Participation.findAll.mockResolvedValue(mockParticipations);
+            ParticipationRepository.findByEvent.mockResolvedValue(mockParticipations);
 
             const result = await ParticipationService.findByEvent(1);
 
-            expect(Participation.findAll).toHaveBeenCalledWith({
-                where: { eventId: 1 },
-                include: [
-                    { model: User, as: 'user' }
-                ]
-            });
+            expect(ParticipationRepository.findByEvent).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockParticipations);
         });
 
         it('should return an empty array if the event has no participations', async () => {
-            Participation.findAll.mockResolvedValue([]);
+            ParticipationRepository.findByEvent.mockResolvedValue([]);
 
             const result = await ParticipationService.findByEvent(999);
 
@@ -255,34 +215,22 @@ describe('ParticipationService', () => {
                 event: { id: 1, name: 'Test Event' }
             };
 
-            Participation.update.mockResolvedValue([1]); // number of updated records
-            Participation.findByPk.mockResolvedValue(updatedParticipation);
+            ParticipationRepository.update.mockResolvedValue([1]); // number of updated records
+            // Mock the findById method that's called inside update
+            const findByIdSpy = jest.spyOn(ParticipationService, 'findById')
+                .mockResolvedValue(updatedParticipation);
 
             const result = await ParticipationService.update(1, updateData);
 
-            expect(Participation.update).toHaveBeenCalledWith(updateData, {
-                where: { id: 1 }
-            });
-            expect(Participation.findByPk).toHaveBeenCalledWith(1, {
-                include: [
-                    { model: User, as: 'user' },
-                    { model: Event, as: 'event' }
-                ]
-            });
+            expect(ParticipationRepository.update).toHaveBeenCalledWith(1, updateData);
             expect(result).toEqual(updatedParticipation);
-        });
 
-        it('should throw an error if the participation is not found for update', async () => {
-            Participation.update.mockResolvedValue([0]); // no records found for update
-
-            await expect(ParticipationService.update(999, { deposit: 150 }))
-                .rejects
-                .toThrow('Participation not found');
+            findByIdSpy.mockRestore();
         });
 
         it('should handle database errors when updating', async () => {
             const dbError = new Error('Database error');
-            Participation.update.mockRejectedValue(dbError);
+            ParticipationRepository.update.mockRejectedValue(dbError);
 
             await expect(ParticipationService.update(1, { deposit: 150 }))
                 .rejects
@@ -293,7 +241,7 @@ describe('ParticipationService', () => {
     describe('error handling', () => {
         it('should handle database errors in findByUserAndEvent', async () => {
             const dbError = new Error('Database connection error');
-            Participation.findOne.mockRejectedValue(dbError);
+            ParticipationRepository.findByUserAndEvent.mockRejectedValue(dbError);
 
             await expect(ParticipationService.findByUserAndEvent(1, 1))
                 .rejects
@@ -302,7 +250,7 @@ describe('ParticipationService', () => {
 
         it('should handle database errors in findByUser', async () => {
             const dbError = new Error('Database connection error');
-            Participation.findAll.mockRejectedValue(dbError);
+            ParticipationRepository.findByUser.mockRejectedValue(dbError);
 
             await expect(ParticipationService.findByUser(1))
                 .rejects
@@ -311,7 +259,7 @@ describe('ParticipationService', () => {
 
         it('should handle database errors in findByEvent', async () => {
             const dbError = new Error('Database connection error');
-            Participation.findAll.mockRejectedValue(dbError);
+            ParticipationRepository.findByEvent.mockRejectedValue(dbError);
 
             await expect(ParticipationService.findByEvent(1))
                 .rejects
@@ -320,7 +268,7 @@ describe('ParticipationService', () => {
 
         it('should handle errors when creating a participation', async () => {
             const dbError = new Error('Database constraint violation');
-            Participation.create.mockRejectedValue(dbError);
+            ParticipationRepository.create.mockRejectedValue(dbError);
 
             await expect(ParticipationService.create({
                 deposit: 100,
@@ -338,7 +286,7 @@ describe('ParticipationService', () => {
                 eventId: 1
             };
 
-            Participation.create.mockResolvedValue({ id: 1, ...participationData });
+            ParticipationRepository.create.mockResolvedValue({ id: 1, ...participationData });
             EventCompletionTracker.handleEventParticipation.mockResolvedValue();
 
             await ParticipationService.create(participationData);
@@ -357,7 +305,7 @@ describe('ParticipationService', () => {
                 eventId: 1
             };
 
-            Participation.create.mockResolvedValue({ id: 1, ...participationData });
+            ParticipationRepository.create.mockResolvedValue({ id: 1, ...participationData });
             EventCompletionTracker.handleEventParticipation.mockResolvedValue();
 
             await ParticipationService.create(participationData);

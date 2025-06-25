@@ -1,9 +1,18 @@
 const TokenService = require('../../service/TokenService');
 const { Token } = require('../../model');
+const { TokenRepository } = require('../../repository');
 const ApiError = require('../../exception/ApiError');
 
 // Mock dependencies
 jest.mock('../../model');
+jest.mock('../../repository', () => ({
+    TokenRepository: {
+        findByRefreshToken: jest.fn(),
+        deleteByUserId: jest.fn(),
+        create: jest.fn(),
+        deleteByRefreshToken: jest.fn()
+    }
+}));
 
 describe('TokenService', () => {
     beforeEach(() => {
@@ -18,15 +27,13 @@ describe('TokenService', () => {
                 refreshToken: 'test-refresh-token'
             };
 
-            Token.destroy.mockResolvedValue(0); // old token not found
-            Token.create.mockResolvedValue(mockToken);
+            TokenRepository.deleteByUserId.mockResolvedValue(0); // old token not found
+            TokenRepository.create.mockResolvedValue(mockToken);
 
             const result = await TokenService.saveToken(1, 'test-refresh-token');
 
-            expect(Token.destroy).toHaveBeenCalledWith({
-                where: { userId: 1 }
-            });
-            expect(Token.create).toHaveBeenCalledWith({
+            expect(TokenRepository.deleteByUserId).toHaveBeenCalledWith(1);
+            expect(TokenRepository.create).toHaveBeenCalledWith({
                 userId: 1,
                 refreshToken: 'test-refresh-token'
             });
@@ -40,15 +47,13 @@ describe('TokenService', () => {
                 refreshToken: 'new-refresh-token'
             };
 
-            Token.destroy.mockResolvedValue(1); // old token found and deleted
-            Token.create.mockResolvedValue(mockToken);
+            TokenRepository.deleteByUserId.mockResolvedValue(1); // old token found and deleted
+            TokenRepository.create.mockResolvedValue(mockToken);
 
             const result = await TokenService.saveToken(1, 'new-refresh-token');
 
-            expect(Token.destroy).toHaveBeenCalledWith({
-                where: { userId: 1 }
-            });
-            expect(Token.create).toHaveBeenCalledWith({
+            expect(TokenRepository.deleteByUserId).toHaveBeenCalledWith(1);
+            expect(TokenRepository.create).toHaveBeenCalledWith({
                 userId: 1,
                 refreshToken: 'new-refresh-token'
             });
@@ -57,8 +62,8 @@ describe('TokenService', () => {
 
         it('should handle database errors when saving', async () => {
             const dbError = new Error('Database connection error');
-            Token.destroy.mockResolvedValue(0);
-            Token.create.mockRejectedValue(dbError);
+            TokenRepository.deleteByUserId.mockResolvedValue(0);
+            TokenRepository.create.mockRejectedValue(dbError);
 
             await expect(TokenService.saveToken(1, 'test-token'))
                 .rejects
@@ -67,7 +72,7 @@ describe('TokenService', () => {
 
         it('should handle errors when deleting the old token', async () => {
             const dbError = new Error('Database connection error');
-            Token.destroy.mockRejectedValue(dbError);
+            TokenRepository.deleteByUserId.mockRejectedValue(dbError);
 
             await expect(TokenService.saveToken(1, 'test-token'))
                 .rejects
@@ -83,30 +88,27 @@ describe('TokenService', () => {
                 refreshToken: 'test-refresh-token'
             };
 
-            Token.findOne.mockResolvedValue(mockToken);
+            TokenRepository.findByRefreshToken.mockResolvedValue(mockToken);
 
             const result = await TokenService.findToken('test-refresh-token');
 
-            expect(Token.findOne).toHaveBeenCalledWith({
-                where: { refreshToken: 'test-refresh-token' }
-            });
+            expect(TokenRepository.findByRefreshToken).toHaveBeenCalledWith('test-refresh-token');
             expect(result).toEqual(mockToken);
         });
 
-        it('should return null if the token is not found', async () => {
-            Token.findOne.mockResolvedValue(null);
+        it('should throw ApiError if the token is not found', async () => {
+            TokenRepository.findByRefreshToken.mockResolvedValue(null);
 
-            const result = await TokenService.findToken('nonexistent-token');
+            await expect(TokenService.findToken('nonexistent-token'))
+                .rejects
+                .toThrow('Refresh token not found');
 
-            expect(Token.findOne).toHaveBeenCalledWith({
-                where: { refreshToken: 'nonexistent-token' }
-            });
-            expect(result).toBeNull();
+            expect(TokenRepository.findByRefreshToken).toHaveBeenCalledWith('nonexistent-token');
         });
 
         it('should handle database errors when finding', async () => {
             const dbError = new Error('Database connection error');
-            Token.findOne.mockRejectedValue(dbError);
+            TokenRepository.findByRefreshToken.mockRejectedValue(dbError);
 
             await expect(TokenService.findToken('test-token'))
                 .rejects
@@ -116,30 +118,27 @@ describe('TokenService', () => {
 
     describe('removeToken', () => {
         it('should successfully remove a token', async () => {
-            Token.destroy.mockResolvedValue(1); // one token removed
+            TokenRepository.deleteByRefreshToken.mockResolvedValue(1); // one token removed
 
             const result = await TokenService.removeToken('test-refresh-token');
 
-            expect(Token.destroy).toHaveBeenCalledWith({
-                where: { refreshToken: 'test-refresh-token' }
-            });
+            expect(TokenRepository.deleteByRefreshToken).toHaveBeenCalledWith('test-refresh-token');
             expect(result).toBe(true);
         });
 
-        it('should return false if the token is not found for removal', async () => {
-            Token.destroy.mockResolvedValue(0); // token not found
+        it('should throw ApiError if the token is not found for removal', async () => {
+            TokenRepository.deleteByRefreshToken.mockResolvedValue(0); // token not found
 
-            const result = await TokenService.removeToken('nonexistent-token');
+            await expect(TokenService.removeToken('nonexistent-token'))
+                .rejects
+                .toThrow('Refresh token not found');
 
-            expect(Token.destroy).toHaveBeenCalledWith({
-                where: { refreshToken: 'nonexistent-token' }
-            });
-            expect(result).toBe(false);
+            expect(TokenRepository.deleteByRefreshToken).toHaveBeenCalledWith('nonexistent-token');
         });
 
         it('should handle database errors when removing', async () => {
             const dbError = new Error('Database connection error');
-            Token.destroy.mockRejectedValue(dbError);
+            TokenRepository.deleteByRefreshToken.mockRejectedValue(dbError);
 
             await expect(TokenService.removeToken('test-token'))
                 .rejects
@@ -149,30 +148,26 @@ describe('TokenService', () => {
 
     describe('removeUserTokens', () => {
         it('should successfully remove all user tokens', async () => {
-            Token.destroy.mockResolvedValue(2); // two tokens removed
+            TokenRepository.deleteByUserId.mockResolvedValue(2); // two tokens removed
 
             const result = await TokenService.removeUserTokens(1);
 
-            expect(Token.destroy).toHaveBeenCalledWith({
-                where: { userId: 1 }
-            });
+            expect(TokenRepository.deleteByUserId).toHaveBeenCalledWith(1);
             expect(result).toBe(true);
         });
 
         it('should return false if the user has no tokens', async () => {
-            Token.destroy.mockResolvedValue(0); // tokens not found
+            TokenRepository.deleteByUserId.mockResolvedValue(0); // tokens not found
 
             const result = await TokenService.removeUserTokens(999);
 
-            expect(Token.destroy).toHaveBeenCalledWith({
-                where: { userId: 999 }
-            });
+            expect(TokenRepository.deleteByUserId).toHaveBeenCalledWith(999);
             expect(result).toBe(false);
         });
 
         it('should handle database errors when removing user tokens', async () => {
             const dbError = new Error('Database connection error');
-            Token.destroy.mockRejectedValue(dbError);
+            TokenRepository.deleteByUserId.mockRejectedValue(dbError);
 
             await expect(TokenService.removeUserTokens(1))
                 .rejects
@@ -181,61 +176,45 @@ describe('TokenService', () => {
     });
 
     describe('error handling', () => {
-        it('should log errors when saving a token', async () => {
-            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        it('should throw ApiError when saving a token fails', async () => {
             const dbError = new Error('Database error');
             
-            Token.destroy.mockResolvedValue(0);
-            Token.create.mockRejectedValue(dbError);
+            TokenRepository.deleteByUserId.mockResolvedValue(0);
+            TokenRepository.create.mockRejectedValue(dbError);
 
             await expect(TokenService.saveToken(1, 'test-token'))
                 .rejects
                 .toThrow('Failed to save refresh token');
-
-            expect(consoleSpy).toHaveBeenCalledWith('Error saving token:', dbError);
-            consoleSpy.mockRestore();
         });
 
-        it('should log errors when finding a token', async () => {
-            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        it('should throw ApiError when finding a token fails', async () => {
             const dbError = new Error('Database error');
             
-            Token.findOne.mockRejectedValue(dbError);
+            TokenRepository.findByRefreshToken.mockRejectedValue(dbError);
 
             await expect(TokenService.findToken('test-token'))
                 .rejects
                 .toThrow('Failed to find refresh token');
-
-            expect(consoleSpy).toHaveBeenCalledWith('Error finding token:', dbError);
-            consoleSpy.mockRestore();
         });
 
-        it('should log errors when removing a token', async () => {
-            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        it('should throw ApiError when removing a token fails', async () => {
             const dbError = new Error('Database error');
             
-            Token.destroy.mockRejectedValue(dbError);
+            TokenRepository.deleteByRefreshToken.mockRejectedValue(dbError);
 
             await expect(TokenService.removeToken('test-token'))
                 .rejects
                 .toThrow('Failed to remove refresh token');
-
-            expect(consoleSpy).toHaveBeenCalledWith('Error removing token:', dbError);
-            consoleSpy.mockRestore();
         });
 
-        it('should log errors when removing user tokens', async () => {
-            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+        it('should throw ApiError when removing user tokens fails', async () => {
             const dbError = new Error('Database error');
             
-            Token.destroy.mockRejectedValue(dbError);
+            TokenRepository.deleteByUserId.mockRejectedValue(dbError);
 
             await expect(TokenService.removeUserTokens(1))
                 .rejects
                 .toThrow('Failed to remove user tokens');
-
-            expect(consoleSpy).toHaveBeenCalledWith('Error removing user tokens:', dbError);
-            consoleSpy.mockRestore();
         });
     });
 
@@ -247,19 +226,19 @@ describe('TokenService', () => {
                 refreshToken: 'test-token'
             };
 
-            Token.destroy.mockResolvedValue(0);
-            Token.create.mockResolvedValue(mockToken);
+            TokenRepository.deleteByUserId.mockResolvedValue(0);
+            TokenRepository.create.mockResolvedValue(mockToken);
 
             // Test with numeric userId
             await TokenService.saveToken(1, 'test-token');
-            expect(Token.create).toHaveBeenCalledWith({
+            expect(TokenRepository.create).toHaveBeenCalledWith({
                 userId: 1,
                 refreshToken: 'test-token'
             });
 
             // Test with string userId (should work)
             await TokenService.saveToken('2', 'test-token-2');
-            expect(Token.create).toHaveBeenCalledWith({
+            expect(TokenRepository.create).toHaveBeenCalledWith({
                 userId: '2',
                 refreshToken: 'test-token-2'
             });

@@ -70,6 +70,7 @@ describe('eventResolvers', () => {
         description: 'New Description',
         type: 'FUNDRAISING',
         userId: 1,
+        imageFile: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAA',
         eventEndConditionGroups: []
       };
 

@@ -64,7 +64,8 @@
     "collectCoverageFrom": [
       "graphql/schema/resolvers/**/*.js",
       "service/**/*.js",
-      "utils/**/*.js"
+      "utils/**/*.js",
+      "repository/**/*.js"
     ],
     "testMatch": [
       "**/__tests__/**/*.test.js"

@@ -363,7 +363,7 @@ describe('authResolvers', () => {
        await expect(authResolvers.Mutation.discordAuthCode(null, {
          code: 'invalid-code',
          redirectUri: 'http://localhost:3000/callback'
-       })).rejects.toThrow('Discord authentication failed');
+       })).rejects.toThrow('Failed to get Discord access token');
     });
 
     it('should handle Discord token endpoint errors', async () => {

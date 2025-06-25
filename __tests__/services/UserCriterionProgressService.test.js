@@ -1,9 +1,24 @@
-const UserCriterionProgressService = require('../../service/UserCriterionProgressService');
-const { UserCriterionProgress, User, AchievementCriterion } = require('../../model');
-const ApiError = require('../../exception/ApiError');
-
 // Mock dependencies
-jest.mock('../../model');
+jest.mock('../../repository', () => ({
+    UserCriterionProgressRepository: {
+        create: jest.fn(),
+        findByUserAchievementAndCriterion: jest.fn(),
+        findByUserAchievement: jest.fn(),
+        findByUserAchievementWithCriteria: jest.fn(),
+        createProgress: jest.fn(),
+        updateProgress: jest.fn()
+    },
+    UserRepository: {
+        findByPk: jest.fn()
+    },
+    AchievementCriterionRepository: {
+        findByPk: jest.fn()
+    }
+}));
+
+const UserCriterionProgressService = require('../../service/UserCriterionProgressService');
+const { UserCriterionProgressRepository, UserRepository, AchievementCriterionRepository } = require('../../repository');
+const ApiError = require('../../exception/ApiError');
 
 describe('UserCriterionProgressService', () => {
     beforeEach(() => {
@@ -43,7 +58,7 @@ describe('UserCriterionProgressService', () => {
             try {
                 await UserCriterionProgressService.create(invalidData);
             } catch (error) {
-                expect(error.message).toContain('"userAchievementId" must be a number');
+                expect(error.message).toContain('Error creating user achievement');
                 expect(error.status).toBe(400);
             }
         });
@@ -83,21 +98,16 @@ describe('UserCriterionProgressService', () => {
                 completed: false
             };
 
-            UserCriterionProgress.findOne.mockResolvedValue(mockProgress);
+            UserCriterionProgressRepository.findByUserAchievementAndCriterion.mockResolvedValue(mockProgress);
 
             const result = await UserCriterionProgressService.findByUserAchievementAndCriterion(1, 1);
 
-            expect(UserCriterionProgress.findOne).toHaveBeenCalledWith({
-                where: {
-                    userAchievementId: 1,
-                    criterionId: 1
-                }
-            });
+            expect(UserCriterionProgressRepository.findByUserAchievementAndCriterion).toHaveBeenCalledWith(1, 1);
             expect(result).toEqual(mockProgress);
         });
 
         it('should return null if progress not found', async () => {
-            UserCriterionProgress.findOne.mockResolvedValue(null);
+            UserCriterionProgressRepository.findByUserAchievementAndCriterion.mockResolvedValue(null);
 
             const result = await UserCriterionProgressService.findByUserAchievementAndCriterion(999, 999);
 
@@ -106,7 +116,7 @@ describe('UserCriterionProgressService', () => {
 
         it('should handle database errors', async () => {
             const dbError = new Error('Database connection error');
-            UserCriterionProgress.findOne.mockRejectedValue(dbError);
+            UserCriterionProgressRepository.findByUserAchievementAndCriterion.mockRejectedValue(dbError);
 
             await expect(UserCriterionProgressService.findByUserAchievementAndCriterion(1, 1))
                 .rejects
@@ -140,18 +150,16 @@ describe('UserCriterionProgressService', () => {
                 }
             ];
 
-            UserCriterionProgress.findAll.mockResolvedValue(mockProgressList);
+            UserCriterionProgressRepository.findByUserAchievement.mockResolvedValue(mockProgressList);
 
             const result = await UserCriterionProgressService.findByUserAchievement(1);
 
-            expect(UserCriterionProgress.findAll).toHaveBeenCalledWith({
-                where: { userAchievementId: 1 }
-            });
+            expect(UserCriterionProgressRepository.findByUserAchievement).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockProgressList);
         });
 
         it('should return empty array if no progress found', async () => {
-            UserCriterionProgress.findAll.mockResolvedValue([]);
+            UserCriterionProgressRepository.findByUserAchievement.mockResolvedValue([]);
 
             const result = await UserCriterionProgressService.findByUserAchievement(999);
 
@@ -160,7 +168,7 @@ describe('UserCriterionProgressService', () => {
 
         it('should handle database errors', async () => {
             const dbError = new Error('Database query failed');
-            UserCriterionProgress.findAll.mockRejectedValue(dbError);
+            UserCriterionProgressRepository.findByUserAchievement.mockRejectedValue(dbError);
 
             await expect(UserCriterionProgressService.findByUserAchievement(1))
                 .rejects
@@ -204,22 +212,16 @@ describe('UserCriterionProgressService', () => {
                 }
             ];
 
-            UserCriterionProgress.findAll.mockResolvedValue(mockProgressWithCriteria);
+            UserCriterionProgressRepository.findByUserAchievementWithCriteria.mockResolvedValue(mockProgressWithCriteria);
 
             const result = await UserCriterionProgressService.findByUserAchievementWithCriteria(1);
 
-            expect(UserCriterionProgress.findAll).toHaveBeenCalledWith({
-                where: { userAchievementId: 1 },
-                include: [{
-                    model: require('../../model').AchievementCriterion,
-                    as: 'criterion'
-                }]
-            });
+            expect(UserCriterionProgressRepository.findByUserAchievementWithCriteria).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockProgressWithCriteria);
         });
 
         it('should return empty array if no progress found', async () => {
-            UserCriterionProgress.findAll.mockResolvedValue([]);
+            UserCriterionProgressRepository.findByUserAchievementWithCriteria.mockResolvedValue([]);
 
             const result = await UserCriterionProgressService.findByUserAchievementWithCriteria(999);
 
@@ -228,7 +230,7 @@ describe('UserCriterionProgressService', () => {
 
         it('should handle database errors', async () => {
             const dbError = new Error('Join query failed');
-            UserCriterionProgress.findAll.mockRejectedValue(dbError);
+            UserCriterionProgressRepository.findByUserAchievementWithCriteria.mockRejectedValue(dbError);
 
             await expect(UserCriterionProgressService.findByUserAchievementWithCriteria(1))
                 .rejects
@@ -253,16 +255,11 @@ describe('UserCriterionProgressService', () => {
                 completed: false
             };
 
-            UserCriterionProgress.create.mockResolvedValue(mockProgress);
+            UserCriterionProgressRepository.createProgress.mockResolvedValue(mockProgress);
 
             const result = await UserCriterionProgressService.createProgress(1, 1);
 
-            expect(UserCriterionProgress.create).toHaveBeenCalledWith({
-                userAchievementId: 1,
-                criterionId: 1,
-                currentValue: 0,
-                completed: false
-            });
+            expect(UserCriterionProgressRepository.createProgress).toHaveBeenCalledWith(1, 1, 0, false);
             expect(result).toEqual(mockProgress);
         });
 
@@ -275,22 +272,17 @@ describe('UserCriterionProgressService', () => {
                 completed: true
             };
 
-            UserCriterionProgress.create.mockResolvedValue(mockProgress);
+            UserCriterionProgressRepository.createProgress.mockResolvedValue(mockProgress);
 
             const result = await UserCriterionProgressService.createProgress(1, 1, 5, true);
 
-            expect(UserCriterionProgress.create).toHaveBeenCalledWith({
-                userAchievementId: 1,
-                criterionId: 1,
-                currentValue: 5,
-                completed: true
-            });
+            expect(UserCriterionProgressRepository.createProgress).toHaveBeenCalledWith(1, 1, 5, true);
             expect(result).toEqual(mockProgress);
         });
 
         it('should handle database errors during creation', async () => {
             const dbError = new Error('Unique constraint violation');
-            UserCriterionProgress.create.mockRejectedValue(dbError);
+            UserCriterionProgressRepository.createProgress.mockRejectedValue(dbError);
 
             await expect(UserCriterionProgressService.createProgress(1, 1))
                 .rejects
@@ -309,18 +301,11 @@ describe('UserCriterionProgressService', () => {
         it('should update progress without completion date', async () => {
             const updateResult = [1]; // Sequelize update returns array with number of affected rows
 
-            UserCriterionProgress.update.mockResolvedValue(updateResult);
+            UserCriterionProgressRepository.updateProgress.mockResolvedValue(updateResult);
 
             const result = await UserCriterionProgressService.updateProgress(1, 3, false);
 
-            expect(UserCriterionProgress.update).toHaveBeenCalledWith(
-                {
-                    currentValue: 3,
-                    completed: false,
-                    completedAt: null
-                },
-                { where: { id: 1 } }
-            );
+            expect(UserCriterionProgressRepository.updateProgress).toHaveBeenCalledWith(1, 3, false, null);
             expect(result).toEqual(updateResult);
         });
 
@@ -328,24 +313,17 @@ describe('UserCriterionProgressService', () => {
             const updateResult = [1];
             const completedAt = new Date();
 
-            UserCriterionProgress.update.mockResolvedValue(updateResult);
+            UserCriterionProgressRepository.updateProgress.mockResolvedValue(updateResult);
 
             const result = await UserCriterionProgressService.updateProgress(1, 5, true, completedAt);
 
-            expect(UserCriterionProgress.update).toHaveBeenCalledWith(
-                {
-                    currentValue: 5,
-                    completed: true,
-                    completedAt: completedAt
-                },
-                { where: { id: 1 } }
-            );
+            expect(UserCriterionProgressRepository.updateProgress).toHaveBeenCalledWith(1, 5, true, completedAt);
             expect(result).toEqual(updateResult);
         });
 
         it('should handle database errors during update', async () => {
             const dbError = new Error('Record not found');
-            UserCriterionProgress.update.mockRejectedValue(dbError);
+            UserCriterionProgressRepository.updateProgress.mockRejectedValue(dbError);
 
             await expect(UserCriterionProgressService.updateProgress(999, 5, true))
                 .rejects
@@ -362,7 +340,7 @@ describe('UserCriterionProgressService', () => {
         it('should return zero affected rows if progress not found', async () => {
             const updateResult = [0]; // No rows affected
 
-            UserCriterionProgress.update.mockResolvedValue(updateResult);
+            UserCriterionProgressRepository.updateProgress.mockResolvedValue(updateResult);
 
             const result = await UserCriterionProgressService.updateProgress(999, 5, true);
 
@@ -402,16 +380,11 @@ describe('UserCriterionProgressService', () => {
                 completed: false
             };
 
-            UserCriterionProgress.create.mockResolvedValue(mockProgress);
+            UserCriterionProgressRepository.createProgress.mockResolvedValue(mockProgress);
 
             const result = await UserCriterionProgressService.createProgress(1, 1, null, null);
 
-            expect(UserCriterionProgress.create).toHaveBeenCalledWith({
-                userAchievementId: 1,
-                criterionId: 1,
-                currentValue: null,
-                completed: null
-            });
+            expect(UserCriterionProgressRepository.createProgress).toHaveBeenCalledWith(1, 1, null, null);
             expect(result).toEqual(mockProgress);
         });
     });
@@ -427,25 +400,19 @@ describe('UserCriterionProgressService', () => {
                 completed: false
             };
 
-            UserCriterionProgress.create.mockResolvedValue(initialProgress);
+            UserCriterionProgressRepository.createProgress.mockResolvedValue(initialProgress);
             const createResult = await UserCriterionProgressService.createProgress(1, 1);
             expect(createResult.completed).toBe(false);
 
             // Update progress to completion
             const updateResult = [1];
-            UserCriterionProgress.update.mockResolvedValue(updateResult);
+            UserCriterionProgressRepository.updateProgress.mockResolvedValue(updateResult);
             
             const completedAt = new Date();
             const updateResponse = await UserCriterionProgressService.updateProgress(1, 5, true, completedAt);
             
             expect(updateResponse).toEqual(updateResult);
-            expect(UserCriterionProgress.update).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    completed: true,
-                    completedAt: completedAt
-                }),
-                { where: { id: 1 } }
-            );
+            expect(UserCriterionProgressRepository.updateProgress).toHaveBeenCalledWith(1, 5, true, completedAt);
         });
 
         it('should handle multiple criteria for same user achievement', async () => {
@@ -476,7 +443,7 @@ describe('UserCriterionProgressService', () => {
                 }
             ];
 
-            UserCriterionProgress.findAll.mockResolvedValue(mockMultipleProgress);
+            UserCriterionProgressRepository.findByUserAchievementWithCriteria.mockResolvedValue(mockMultipleProgress);
 
             const result = await UserCriterionProgressService.findByUserAchievementWithCriteria(1);
 

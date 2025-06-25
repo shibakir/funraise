@@ -77,14 +77,14 @@ describe('participationResolvers', () => {
     it('should successfully create a transaction', async () => {
       const mockInput = {
         amount: 500,
-        type: 'DEPOSIT',
+        type: 'BALANCE_INCOME',
         userId: 1
       };
 
       const mockTransaction = {
         id: 1,
         amount: 500,
-        type: 'DEPOSIT',
+        type: 'BALANCE_INCOME',
         userId: 1,
         createdAt: new Date()
       };
@@ -99,15 +99,15 @@ describe('participationResolvers', () => {
 
     it('should throw an error if the transaction creation fails', async () => {
       const mockInput = {
-        amount: -100,
-        type: 'INVALID',
+        amount: 500,
+        type: 'INVALID_TYPE',
         userId: 1
       };
 
-      transactionService.create.mockRejectedValue(new Error('Invalid transaction data'));
+      transactionService.create.mockRejectedValue(new Error('Validation error: \"type\" must be one of [BALANCE_INCOME, BALANCE_OUTCOME, EVENT_INCOME, EVENT_OUTCOME, GIFT]'));
 
       await expect(participationResolvers.Mutation.createTransaction(null, { input: mockInput }))
-        .rejects.toThrow('Invalid transaction data');
+        .rejects.toThrow('Validation error: \"type\" must be one of [BALANCE_INCOME, BALANCE_OUTCOME, EVENT_INCOME, EVENT_OUTCOME, GIFT]');
 
       expect(console.error).toHaveBeenCalledWith('Error creating transaction:', expect.any(Error));
     });

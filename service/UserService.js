@@ -370,7 +370,7 @@ class UserService {
             if (e instanceof ApiError) {
                 throw e;
             }
-            throw ApiError.database('Error finding user by ID with accounts', e);
+            throw ApiError.database('Error finding User by ID', e);
         }
     }
 

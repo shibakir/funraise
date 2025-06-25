@@ -1,9 +1,9 @@
 const UserAchievementService = require('../../service/UserAchievementService');
-const { UserAchievement, User, Achievement, UserCriterionProgress, AchievementCriterion } = require('../../model');
+const { UserAchievementRepository, UserRepository, AchievementRepository } = require('../../repository');
 const ApiError = require('../../exception/ApiError');
 
 // Mock dependencies
-jest.mock('../../model');
+jest.mock('../../repository');
 
 describe('UserAchievementService', () => {
     beforeEach(() => {
@@ -35,18 +35,18 @@ describe('UserAchievementService', () => {
                 unlockedAt: null
             };
 
-            User.findOne.mockResolvedValue(mockUser);
-            Achievement.findOne.mockResolvedValue(mockAchievement);
+            UserRepository.findByPk.mockResolvedValue(mockUser);
+            AchievementRepository.findByPk.mockResolvedValue(mockAchievement);
             // Mock the findByUserAndAchievement method that's called inside create
             const findByUserAndAchievementSpy = jest.spyOn(UserAchievementService, 'findByUserAndAchievement')
                 .mockResolvedValue(null);
-            UserAchievement.create.mockResolvedValue(mockUserAchievement);
+            UserAchievementRepository.create.mockResolvedValue(mockUserAchievement);
 
             const result = await UserAchievementService.create(validUserAchievementData);
 
-            expect(User.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
-            expect(Achievement.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
-            expect(UserAchievement.create).toHaveBeenCalledWith({
+            expect(UserRepository.findByPk).toHaveBeenCalledWith(1);
+            expect(AchievementRepository.findByPk).toHaveBeenCalledWith(1);
+            expect(UserAchievementRepository.create).toHaveBeenCalledWith({
                 userId: 1,
                 achievementId: 1
             });
@@ -55,15 +55,27 @@ describe('UserAchievementService', () => {
             findByUserAndAchievementSpy.mockRestore();
         });
 
-        it('should validate input data', async () => {
-            const invalidData = {
-                userId: '', // empty userId
-                achievementId: 1
-            };
+        it('should throw an error if user does not exist', async () => {
+            UserRepository.findByPk.mockResolvedValueOnce(null);
 
-            await expect(UserAchievementService.create(invalidData))
-                .rejects
-                .toThrow('Validation failed');
+            const promise = UserAchievementService.create(validUserAchievementData);
+
+            await expect(promise).rejects.toThrow(ApiError);
+            await expect(promise).rejects.toHaveProperty('message', 'User does not exist');
+            await expect(promise).rejects.toHaveProperty('status', 404);
+        });
+
+        it('should throw an error if achievement does not exist', async () => {
+            const mockUser = { id: 1, username: 'testuser' };
+            
+            UserRepository.findByPk.mockResolvedValueOnce(mockUser);
+            AchievementRepository.findByPk.mockResolvedValueOnce(null);
+
+            const promise = UserAchievementService.create(validUserAchievementData);
+
+            await expect(promise).rejects.toThrow(ApiError);
+            await expect(promise).rejects.toHaveProperty('message', 'Achievement does not exist');
+            await expect(promise).rejects.toHaveProperty('status', 404);
         });
 
         it('should throw an error if the user already has this achievement', async () => {
@@ -71,15 +83,17 @@ describe('UserAchievementService', () => {
             const mockAchievement = { id: 1, name: 'Test Achievement' };
             const existingUserAchievement = { id: 1, userId: 1, achievementId: 1 };
 
-            User.findOne.mockResolvedValue(mockUser);
-            Achievement.findOne.mockResolvedValue(mockAchievement);
+            UserRepository.findByPk.mockResolvedValue(mockUser);
+            AchievementRepository.findByPk.mockResolvedValue(mockAchievement);
             // Mock the findByUserAndAchievement method to return existing achievement
             const findByUserAndAchievementSpy = jest.spyOn(UserAchievementService, 'findByUserAndAchievement')
                 .mockResolvedValue(existingUserAchievement);
 
-            await expect(UserAchievementService.create(validUserAchievementData))
-                .rejects
-                .toThrow('User already has this achievement');
+            const promise = UserAchievementService.create(validUserAchievementData);
+
+            await expect(promise).rejects.toThrow(ApiError);
+            await expect(promise).rejects.toHaveProperty('message', 'User already has this achievement');
+            await expect(promise).rejects.toHaveProperty('status', 409);
 
             findByUserAndAchievementSpy.mockRestore();
         });
@@ -94,21 +108,16 @@ describe('UserAchievementService', () => {
                 status: 'COMPLETED'
             };
 
-            UserAchievement.findOne.mockResolvedValue(mockUserAchievement);
+            UserAchievementRepository.findByUserAndAchievement.mockResolvedValue(mockUserAchievement);
 
             const result = await UserAchievementService.findByUserAndAchievement(1, 1);
 
-            expect(UserAchievement.findOne).toHaveBeenCalledWith({
-                where: {
-                    userId: 1,
-                    achievementId: 1
-                }
-            });
+            expect(UserAchievementRepository.findByUserAndAchievement).toHaveBeenCalledWith(1, 1);
             expect(result).toEqual(mockUserAchievement);
         });
 
         it('should return null if the achievement is not found', async () => {
-            UserAchievement.findOne.mockResolvedValue(null);
+            UserAchievementRepository.findByUserAndAchievement.mockResolvedValue(null);
 
             const result = await UserAchievementService.findByUserAndAchievement(999, 999);
 
@@ -125,20 +134,23 @@ describe('UserAchievementService', () => {
                 status: 'IN_PROGRESS'
             };
 
-            UserAchievement.findByPk.mockResolvedValue(mockUserAchievement);
+            UserAchievementRepository.findByPk.mockResolvedValue(mockUserAchievement);
 
             const result = await UserAchievementService.findById(1);
 
-            expect(UserAchievement.findByPk).toHaveBeenCalledWith(1);
+            expect(UserAchievementRepository.findByPk).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockUserAchievement);
         });
 
         it('should throw an error if the achievement is not found', async () => {
-            UserAchievement.findByPk.mockResolvedValue(null);
+            const notFoundError = ApiError.notFound('UserAchievement not found');
+            UserAchievementRepository.findByPk.mockRejectedValue(notFoundError);
 
-            await expect(UserAchievementService.findById(999))
-                .rejects
-                .toThrow('User achievement not found');
+            const promise = UserAchievementService.findById(999);
+
+            await expect(promise).rejects.toThrow(ApiError);
+            await expect(promise).rejects.toHaveProperty('message', 'UserAchievement not found');
+            await expect(promise).rejects.toHaveProperty('status', 404);
         });
     });
 
@@ -191,32 +203,16 @@ describe('UserAchievementService', () => {
                 }
             ];
 
-            UserAchievement.findAll.mockResolvedValue(mockUserAchievements);
+            UserAchievementRepository.findByUserWithDetails.mockResolvedValue(mockUserAchievements);
 
             const result = await UserAchievementService.findByUserWithDetails(1);
 
-            expect(UserAchievement.findAll).toHaveBeenCalledWith({
-                where: { userId: 1 },
-                include: [
-                    {
-                        model: Achievement,
-                        as: 'achievement'
-                    },
-                    {
-                        model: UserCriterionProgress,
-                        as: 'progresses',
-                        include: [{
-                            model: AchievementCriterion,
-                            as: 'criterion'
-                        }]
-                    }
-                ]
-            });
+            expect(UserAchievementRepository.findByUserWithDetails).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockUserAchievements);
         });
 
         it('should return an empty array if the user has no achievements', async () => {
-            UserAchievement.findAll.mockResolvedValue([]);
+            UserAchievementRepository.findByUserWithDetails.mockResolvedValue([]);
 
             const result = await UserAchievementService.findByUserWithDetails(999);
 
@@ -233,20 +229,23 @@ describe('UserAchievementService', () => {
                 status: 'IN_PROGRESS'
             };
 
-            UserAchievement.findByPk.mockResolvedValue(mockUserAchievement);
-            UserAchievement.update.mockResolvedValue([1]);
+            const mockUpdatedResult = {
+                id: 1,
+                status: 'COMPLETED',
+                unlockedAt: expect.any(Date)
+            };
+
+            // Mock findById method that's called inside updateStatus
+            const findByIdSpy = jest.spyOn(UserAchievementService, 'findById')
+                .mockResolvedValue(mockUserAchievement);
+            UserAchievementRepository.updateStatus.mockResolvedValue(mockUpdatedResult);
 
             const result = await UserAchievementService.updateStatus(1, 'COMPLETED', new Date());
 
-            expect(UserAchievement.findByPk).toHaveBeenCalledWith(1);
-            expect(UserAchievement.update).toHaveBeenCalledWith(
-                { 
-                    status: 'COMPLETED',
-                    unlockedAt: expect.any(Date)
-                },
-                { where: { id: 1 } }
-            );
-            expect(result).toEqual([1]);
+            expect(UserAchievementRepository.updateStatus).toHaveBeenCalledWith(1, 'COMPLETED', expect.any(Date));
+            expect(result).toEqual(mockUpdatedResult);
+
+            findByIdSpy.mockRestore();
         });
 
         it('should throw an error if the status is already set', async () => {
@@ -261,9 +260,10 @@ describe('UserAchievementService', () => {
             const findByIdSpy = jest.spyOn(UserAchievementService, 'findById')
                 .mockResolvedValue(mockUserAchievement);
 
-            await expect(UserAchievementService.updateStatus(1, 'COMPLETED'))
-                .rejects
-                .toThrow('Achievement status is already set to this value');
+            const promise = UserAchievementService.updateStatus(1, 'COMPLETED');
+
+            await expect(promise).rejects.toThrow(ApiError);
+            await expect(promise).rejects.toHaveProperty('message', 'Achievement status is already set to this value');
 
             findByIdSpy.mockRestore();
         });
@@ -276,19 +276,23 @@ describe('UserAchievementService', () => {
                 status: 'IN_PROGRESS'
             };
 
-            UserAchievement.findByPk.mockResolvedValue(mockUserAchievement);
-            UserAchievement.update.mockResolvedValue([1]);
+            const mockUpdatedResult = {
+                id: 1,
+                status: 'FAILED',
+                unlockedAt: null
+            };
+
+            // Mock findById method that's called inside updateStatus
+            const findByIdSpy = jest.spyOn(UserAchievementService, 'findById')
+                .mockResolvedValue(mockUserAchievement);
+            UserAchievementRepository.updateStatus.mockResolvedValue(mockUpdatedResult);
 
             const result = await UserAchievementService.updateStatus(1, 'FAILED');
 
-            expect(UserAchievement.update).toHaveBeenCalledWith(
-                { 
-                    status: 'FAILED',
-                    unlockedAt: null
-                },
-                { where: { id: 1 } }
-            );
-            expect(result).toEqual([1]);
+            expect(UserAchievementRepository.updateStatus).toHaveBeenCalledWith(1, 'FAILED', null);
+            expect(result).toEqual(mockUpdatedResult);
+
+            findByIdSpy.mockRestore();
         });
     });
 
@@ -296,10 +300,10 @@ describe('UserAchievementService', () => {
         it('should handle database errors when creating', async () => {
             const dbError = new Error('Database constraint violation');
             
-            User.findOne.mockResolvedValue({ id: 1, username: 'testuser' });
-            Achievement.findOne.mockResolvedValue({ id: 1, name: 'Test Achievement' });
+            UserRepository.findByPk.mockResolvedValue({ id: 1, username: 'testuser' });
+            AchievementRepository.findByPk.mockResolvedValue({ id: 1, name: 'Test Achievement' });
             UserAchievementService.findByUserAndAchievement = jest.fn().mockResolvedValue(null);
-            UserAchievement.create.mockRejectedValue(dbError);
+            UserAchievementRepository.create.mockRejectedValue(dbError);
 
             await expect(UserAchievementService.create({
                 userId: 1,
@@ -309,7 +313,7 @@ describe('UserAchievementService', () => {
 
         it('should handle database errors when finding with details', async () => {
             const dbError = new Error('Database connection error');
-            UserAchievement.findAll.mockRejectedValue(dbError);
+            UserAchievementRepository.findByUserWithDetails.mockRejectedValue(dbError);
 
             await expect(UserAchievementService.findByUserWithDetails(1))
                 .rejects
@@ -335,26 +339,26 @@ describe('UserAchievementService', () => {
             const userData = { userId: 1, achievementId: 1 };
             
             // Test case 1: User exists, achievement does not exist
-            User.findOne.mockResolvedValueOnce({ id: 1, username: 'testuser' });
-            Achievement.findOne.mockResolvedValueOnce(null);
+            UserRepository.findByPk.mockResolvedValueOnce({ id: 1, username: 'testuser' });
+            AchievementRepository.findByPk.mockResolvedValueOnce(null);
             const findByUserAndAchievementSpy1 = jest.spyOn(UserAchievementService, 'findByUserAndAchievement')
                 .mockResolvedValue(null);
 
             await expect(UserAchievementService.create(userData))
                 .rejects
-                .toThrow('Achievement does not exist');
+                .toThrow(ApiError);
 
             findByUserAndAchievementSpy1.mockRestore();
 
             // Test case 2: User does not exist (achievement check won't be reached)
-            User.findOne.mockResolvedValueOnce(null);
-            Achievement.findOne.mockResolvedValueOnce({ id: 1, name: 'Test Achievement' }); // This won't be reached
+            UserRepository.findByPk.mockResolvedValueOnce(null);
+            AchievementRepository.findByPk.mockResolvedValueOnce({ id: 1, name: 'Test Achievement' }); // This won't be reached
             const findByUserAndAchievementSpy2 = jest.spyOn(UserAchievementService, 'findByUserAndAchievement')
                 .mockResolvedValue(null);
 
             await expect(UserAchievementService.create(userData))
                 .rejects
-                .toThrow('User does not exist');
+                .toThrow(ApiError);
 
             findByUserAndAchievementSpy2.mockRestore();
         });
@@ -370,13 +374,19 @@ describe('UserAchievementService', () => {
                     status: 'IN_PROGRESS' // Different from target status
                 };
 
+                const mockUpdatedResult = {
+                    id: 1,
+                    status: status,
+                    unlockedAt: null
+                };
+
                 // Mock the findById method that's called inside updateStatus
                 const findByIdSpy = jest.spyOn(UserAchievementService, 'findById')
                     .mockResolvedValue(mockUserAchievement);
-                UserAchievement.update.mockResolvedValue([1]);
+                UserAchievementRepository.updateStatus.mockResolvedValue(mockUpdatedResult);
 
                 const result = await UserAchievementService.updateStatus(1, status);
-                expect(result).toEqual([1]);
+                expect(result).toEqual(mockUpdatedResult);
 
                 findByIdSpy.mockRestore();
             }
