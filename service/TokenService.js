@@ -1,19 +1,26 @@
 const ApiError = require('../exception/ApiError');
 const { TokenRepository } = require('../repository');
 
+/**
+ * Service layer for managing JWT refresh tokens and user authentication sessions
+ * Handles token storage, validation, cleanup, and session management
+ * Provides secure token operations with proper error handling and cleanup
+ */
 class TokenService {
     /**
-     * Saves refresh token to the database
-     * @param {number} userId - User ID
-     * @param {string} refreshToken - Refresh token to save
-     * @returns {Promise<Token>} Saved token
+     * Saves a refresh token to the database for a specific user
+     * Automatically removes any existing tokens for the user to maintain single session
+     * @param {number} userId - ID of the user
+     * @param {string} refreshToken - JWT refresh token to save
+     * @returns {Promise<Token>} Saved token record
+     * @throws {ApiError} Database error if save operation fails
      */
     async saveToken(userId, refreshToken) {
         try {
-            // Delete old user token if exists
+            // Delete old user token if exists to prevent token accumulation
             await TokenRepository.deleteByUserId(userId);
 
-            // Create new token
+            // Create new token record for the user
             const token = await TokenRepository.create({
                 userId,
                 refreshToken
@@ -26,9 +33,11 @@ class TokenService {
     }
 
     /**
-     * Finds token by refresh token
-     * @param {string} refreshToken - Refresh token to find
-     * @returns {Promise<Token|null>} Found token or throws notFound
+     * Finds and validates a refresh token in the database
+     * Used during token refresh operations to verify token validity
+     * @param {string} refreshToken - JWT refresh token to find and validate
+     * @returns {Promise<Token>} Found token record with user information
+     * @throws {ApiError} Not found error if token doesn't exist or is invalid
      */
     async findToken(refreshToken) {
         try {
@@ -44,9 +53,11 @@ class TokenService {
     }
 
     /**
-     * Deletes token from the database
-     * @param {string} refreshToken - Refresh token to delete
-     * @returns {Promise<boolean>} True if token was deleted, throws notFound если не найден
+     * Removes a specific refresh token from the database
+     * Used during logout to invalidate the current session
+     * @param {string} refreshToken - JWT refresh token to delete
+     * @returns {Promise<boolean>} True if token was successfully deleted
+     * @throws {ApiError} Not found error if token doesn't exist or database error
      */
     async removeToken(refreshToken) {
         try {
@@ -62,9 +73,11 @@ class TokenService {
     }
 
     /**
-     * Deletes all user tokens
-     * @param {number} userId - User ID
-     * @returns {Promise<boolean>} True if tokens were deleted
+     * Removes all refresh tokens for a specific user
+     * Used during account deactivation or security cleanup operations
+     * @param {number} userId - ID of the user whose tokens to remove
+     * @returns {Promise<boolean>} True if any tokens were deleted, false if none existed
+     * @throws {ApiError} Database error if deletion operation fails
      */
     async removeUserTokens(userId) {
         try {

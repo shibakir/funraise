@@ -1,29 +1,52 @@
+// Base repository providing common CRUD operations
 const BaseRepository = require('./BaseRepository');
+
+// User management repositories
 const UserRepository = require('./UserRepository');
-const EventRepository = require('./EventRepository');
 const AccountRepository = require('./AccountRepository');
-const ParticipationRepository = require('./ParticipationRepository');
 const TokenRepository = require('./TokenRepository');
-const TransactionRepository = require('./TransactionRepository');
+
+// Event management repositories
+const EventRepository = require('./EventRepository');
+const ParticipationRepository = require('./ParticipationRepository');
+const EndConditionRepository = require('./EndConditionRepository');
+const EventEndConditionRepository = require('./EventEndConditionRepository');
+
+// Achievement system repositories
 const AchievementRepository = require('./AchievementRepository');
 const AchievementCriterionRepository = require('./AchievementCriterionRepository');
 const UserAchievementRepository = require('./UserAchievementRepository');
 const UserCriterionProgressRepository = require('./UserCriterionProgressRepository');
-const EndConditionRepository = require('./EndConditionRepository');
-const EventEndConditionRepository = require('./EventEndConditionRepository');
 
+// Financial transaction repository
+const TransactionRepository = require('./TransactionRepository');
+
+/**
+ * Repository exports
+ * All repositories follow the singleton pattern and are exported as instances
+ * ready for use by the service layer
+ */
 module.exports = {
+    // Base repository for inheritance
     BaseRepository,
+    
+    // User and authentication repositories
     UserRepository,
-    EventRepository,
     AccountRepository,
-    ParticipationRepository,
     TokenRepository,
-    TransactionRepository,
+    
+    // Event and participation repositories
+    EventRepository,
+    ParticipationRepository,
+    EndConditionRepository,
+    EventEndConditionRepository,
+    
+    // Achievement and progress tracking repositories
     AchievementRepository,
     AchievementCriterionRepository,
     UserAchievementRepository,
     UserCriterionProgressRepository,
-    EndConditionRepository,
-    EventEndConditionRepository,
+    
+    // Financial transaction repository
+    TransactionRepository,
 }; 
