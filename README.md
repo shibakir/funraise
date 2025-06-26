@@ -31,21 +31,38 @@ A comprehensive guide for cloning, installing, and running the FunRaise GraphQL 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd funraise/server
+cd funraise-server
 
 # Or if you already have the project
-cd path/to/your/project/server
+cd path/to/your/project/funraise-server
+```
+
+### ⚠️ Important: Always Run from `/funraise-server` Directory
+**Critical:** All Docker and npm commands for server must be run from the `/funraise-server` directory, not from the project root!
+
+```bash
+# Correct - from server directory
+cd funraise-server
+docker-compose up -d
+
+# Wrong - from project root
+cd funraise
+docker-compose up -d  # Otherwise fail!
 ```
 
 ### Choose Your Setup Method
 
 **Option 1: Docker (Recommended)** - Database created automatically
 ```bash
+# Make sure you're in /server directory
+cd funraise-server
 make setup && make up
 ```
 
 **Option 2: Local Development** - Manual database creation required
 ```bash
+# Make sure you're in /server directory  
+cd funraise-server
 npm install && cp env.example .env
 # Create MySQL database manually, configure .env file, then:
 npm run dev
@@ -105,6 +122,15 @@ npm start
 
 The server will be available at `http://localhost:3000`
 
+### 6. Verify Installation
+```bash
+# Check server is running
+curl http://localhost:3000/health
+
+# Expected response:
+# {"status":"OK","timestamp":"...","service":"funraise-api"}
+```
+
 ## Docker Setup
 
 **Why Docker is recommended:** Docker automatically handles MySQL database creation, user setup, and all dependencies without manual database setup required!
@@ -140,11 +166,21 @@ make status
 ```bash
 # Check health endpoint
 make health
+# or
+curl http://localhost:3000/health
+
+# Expected response:
+# {"status":"OK","timestamp":"...","service":"funraise-api"}
+
+# Check container status (both should be healthy)
+make status
+# or  
+docker-compose ps
 
 # View logs
 make logs
 
-# View app-specific logs
+# View app-specific logs  
 make logs-app
 ```
 
@@ -231,7 +267,7 @@ make shell         # Access app container
 make db-shell      # Access MySQL console
 make status        # Show container status
 make health        # Check application health
-make clean         # Clean Docker resources (⚠️ destructive)
+make clean         # Clean Docker resources
 ```
 
 ### Direct Docker Commands
@@ -288,6 +324,56 @@ Tests use a separate test database configuration. Ensure your test environment i
 
 ## Troubleshooting
 
+### Critical Setup Issues
+
+#### ⚠️ Wrong Directory Error
+**Problem:** Commands fail when run from project root instead of `/funraise-server` directory.
+
+**Solution:**
+```bash
+# Always navigate to server directory first
+cd funraise-server
+
+# Then run Docker/npm commands
+docker-compose up -d
+# or
+make up
+```
+
+#### ⚠️ MySQL Docker Environment Error
+**Problem:** 
+```
+MYSQL_USER="root", MYSQL_USER and MYSQL_PASSWORD are for configuring a regular user and cannot be used for the root user
+```
+
+**Solution:** Check your `.env` file has the correct format:
+```bash
+# In server/.env file - correct format:
+DB_USER=funraise_user           # Not root
+DB_PASSWORD=funraise123         # Regular user password  
+MYSQL_ROOT_PASSWORD=funraise_root_123 # Root password
+```
+
+**If still failing:**
+```bash
+cd funraise-server
+docker-compose down
+docker volume rm funraise_mysql_data server_mysql_data
+docker-compose up --build --force-recreate -d
+```
+
+#### ⚠️ File Case Sensitivity Error (Linux/Docker)
+**Problem:** 
+```
+Cannot find module './middleware/AuthMiddleware'
+```
+
+**Root Cause:** In Linux/Docker, file names are case-sensitive. The actual file is `authMiddleware.js` but code imports `AuthMiddleware`.
+
+**Already Fixed:** This has been resolved in the codebase, but if you encounter similar issues:
+- Check exact file names: `ls -la middleware/`
+- Ensure imports match exact case: `authMiddleware.js` not `AuthMiddleware.js`
+
 ### Common Issues
 
 #### Port Already in Use
@@ -304,7 +390,8 @@ kill -9 <PID>
 # Local MySQL
 mysql -u funraise_user -p funraise
 
-# Docker MySQL
+# Docker MySQL - connect to container
+cd funraise-server
 make db-shell
 # or
 docker-compose exec db mysql -u funraise_user -p funraise
@@ -312,17 +399,44 @@ docker-compose exec db mysql -u funraise_user -p funraise
 
 #### Docker Issues
 ```bash
+# ⚠️ Always run from /server directory first!
+cd funraise-server
+
 # Check container status
 make status
+# or
+docker-compose ps
 
 # View detailed logs
 make logs-app
+# or  
+docker-compose logs -f app
 
 # Restart services
 make restart
+# or
+docker-compose restart
 
-# Clean rebuild
+# Clean rebuild (nuclear option)
 make clean && make up
+# or
+docker-compose down
+docker volume rm funraise_mysql_data
+docker-compose up --build --force-recreate -d
+```
+
+#### Container Keeps Restarting
+```bash
+cd funraise-server
+
+# Check what's wrong
+docker-compose logs app
+
+# Common causes:
+# 1. Wrong directory - make sure you're in /server
+# 2. Missing .env file - run: cp env.example .env
+# 3. Database not ready - wait for mysql to be healthy
+# 4. Import errors - check logs for module not found errors
 ```
 
 ### Database Reset
@@ -330,18 +444,73 @@ If you need to completely reset the database:
 
 **Local:**
 ```bash
+cd funraise-server
 npm run reset-db
 npm run seed
 ```
 
 **Docker:**
 ```bash
+cd funraise-server
 make down
-docker volume rm server_mysql_data
+docker volume rm server_mysql_data funraise_mysql_data
 make up
 ```
 
 ### Log Locations
 - **Local**: Console output
-- **Docker**: Container logs via `make logs`
+- **Docker**: Container logs via `cd funraise-server && make logs`
 - **Application logs**: Inside container at `/usr/src/app/logs`
+
+### Quick Diagnosis Commands
+```bash
+# Check you're in the right directory
+pwd  # Should end with /server
+
+# Check .env exists
+ls -la .env
+
+# Check Docker containers
+docker-compose ps
+
+# Check MySQL is healthy
+docker-compose exec db mysqladmin ping -h localhost
+
+# Test app health
+curl http://localhost:3000/health
+```
+
+## 🎉 Success Indicators
+
+When everything is working correctly, you should see:
+
+1. **Healthy containers:**
+   ```bash
+   cd funraise-server && docker-compose ps
+   # Both services should show "healthy" status
+   ```
+
+2. **Working health check:**
+   ```bash
+   curl http://localhost:3000/health
+   # Returns: {"status":"OK","timestamp":"...","service":"funraise-api"}
+   ```
+
+3. **Server logs show:**
+   ```
+   Database synchronized successfully
+   Database cleared  
+   Achievements seeded
+   Test data seeded
+   WebSocket server configured
+   Server started at http://localhost:3000/graphql
+   ```
+
+4. **GraphQL Playground accessible:**
+   - Open: http://localhost:3000/graphql
+   - You should see the GraphQL interface
+
+**Next Steps:**
+- Access GraphQL Playground at http://localhost:3000/graphql
+- Use the API for your mobile application
+- Database is ready with test data and achievements

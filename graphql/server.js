@@ -2,7 +2,7 @@ const { createHandler } = require('graphql-http/lib/use/express');
 const { useServer } = require('graphql-ws/lib/use/ws');
 const { WebSocketServer } = require('ws');
 const schema = require('./schema');
-const { createGraphQLContext, createWebSocketContext } = require('../middleware/AuthMiddleware');
+const { createGraphQLContext, createWebSocketContext } = require('../middleware/authMiddleware');
 const ApiError = require('../exception/ApiError');
 
 /**
