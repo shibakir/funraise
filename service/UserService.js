@@ -488,6 +488,72 @@ class UserService {
         }
     }
 
+    /**
+     * Retrieves users ranked by their current balance in descending order
+     * @param {number} [limit] - Maximum number of users to return
+     * @returns {Promise<UserRanking[]>} Array of users with their balance as amount
+     * @throws {ApiError} Database error if operation fails
+     */
+    async getUsersByBalance(limit) {
+        try {
+            return await UserRepository.findUsersByBalance(limit);
+        } catch (e) {
+            throw ApiError.database('Error getting users by balance', e);
+        }
+    }
+
+    /**
+     * Retrieves users ranked by their EVENT_INCOME transaction sum after specified date
+     * @param {string} [afterDate] - ISO date string to filter transactions after (not older than)
+     * @param {number} [limit] - Maximum number of users to return
+     * @returns {Promise<UserRanking[]>} Array of users with their EVENT_INCOME sum as amount
+     * @throws {ApiError} Database error if operation fails
+     */
+    async getUsersByEventIncome(afterDate = null, limit) {
+        try {
+            let afterDateObj = null;
+            if (afterDate) {
+                afterDateObj = new Date(afterDate);
+                if (isNaN(afterDateObj.getTime())) {
+                    throw ApiError.badRequest('Invalid afterDate format. Please use ISO string format.');
+                }
+            }
+            
+            return await UserRepository.findUsersByTransactionSum('EVENT_INCOME', afterDateObj, limit);
+        } catch (e) {
+            if (e instanceof ApiError) {
+                throw e;
+            }
+            throw ApiError.database('Error getting users by event income', e);
+        }
+    }
+
+    /**
+     * Retrieves users ranked by their EVENT_OUTCOME transaction sum after specified date
+     * @param {string} [afterDate] - ISO date string to filter transactions after (not older than)
+     * @param {number} [limit] - Maximum number of users to return
+     * @returns {Promise<UserRanking[]>} Array of users with their EVENT_OUTCOME sum as amount
+     * @throws {ApiError} Database error if operation fails
+     */
+    async getUsersByEventOutcome(afterDate = null, limit) {
+        try {
+            let afterDateObj = null;
+            if (afterDate) {
+                afterDateObj = new Date(afterDate);
+                if (isNaN(afterDateObj.getTime())) {
+                    throw ApiError.badRequest('Invalid afterDate format. Please use ISO string format.');
+                }
+            }
+            
+            return await UserRepository.findUsersByTransactionSum('EVENT_OUTCOME', afterDateObj, limit);
+        } catch (e) {
+            if (e instanceof ApiError) {
+                throw e;
+            }
+            throw ApiError.database('Error getting users by event outcome', e);
+        }
+    }
+
 }
 
 module.exports = new UserService();

@@ -45,7 +45,6 @@ services:
       # Discord OAuth
       DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID}
       DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
-      DISCORD_REDIRECT_URI: ${DISCORD_REDIRECT_URI:-http://localhost:3000/auth/discord/callback}
       
       # JWT Secrets
       JWT_SECRET: ${JWT_SECRET}
