@@ -61,8 +61,6 @@ const start = async () => {
         await syncDatabase();
         console.log('Database synchronized successfully');
 
-
-
         // Always clear database and run seeders
         console.log('Clearing database and running seeders...');
         const { runAllSeeders, seedProductionData, smartClearDatabase } = require('./seeder');
@@ -73,8 +71,6 @@ const start = async () => {
 
         // Run seeders with some test data & achievements
         await runAllSeeders();
-
-        
     
         // Create HTTP server
         const server = createServer(app);

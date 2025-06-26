@@ -190,6 +190,94 @@ class UserRepository extends BaseRepository {
     async updateActivationLink(userId, activationLink) {
         return await this.update(userId, { activationLink });
     }
+
+    /**
+     * Finds users ranked by their current balance in descending order
+     * Used for balance leaderboard functionality
+     * @param {number} [limit] - Maximum number of users to return
+     * @returns {Promise<Array>} Array of objects with {id, username, amount} where amount is balance
+     */
+    async findUsersByBalance(limit) {
+        const options = {
+            attributes: ['id', 'username', 'balance'],
+            order: [['balance', 'DESC']],
+            raw: true
+        };
+
+        if (limit && limit > 0) {
+            options.limit = limit;
+        }
+
+        const users = await this.findAll(options);
+        
+        // Transform to match UserRanking type
+        return users.map(user => ({
+            id: user.id,
+            username: user.username,
+            amount: user.balance
+        }));
+    }
+
+    /**
+     * Finds users ranked by their transaction sum of specific type after specified date
+     * Used for income/outcome leaderboard functionality
+     * @param {string} transactionType - Type of transaction (EVENT_INCOME or EVENT_OUTCOME)
+     * @param {Date} [afterDate] - Date to filter transactions after (not older than)
+     * @param {number} [limit] - Maximum number of users to return
+     * @returns {Promise<Array>} Array of objects with {id, username, amount} where amount is transaction sum
+     */
+    async findUsersByTransactionSum(transactionType, afterDate = null, limit) {
+        const { Transaction } = require('../model');
+        const { sequelize } = require('../model/db');
+
+        // Build date filter conditions
+        const whereConditions = {
+            type: transactionType
+        };
+        
+        if (afterDate) {
+            whereConditions.createdAt = {
+                [Op.gte]: afterDate
+            };
+        }
+
+        const options = {
+            attributes: [
+                'id',
+                'username',
+                [
+                    sequelize.fn('COALESCE', 
+                        sequelize.fn('SUM', sequelize.col('Transactions.amount')), 
+                        0
+                    ), 
+                    'transactionSum'
+                ]
+            ],
+            include: [{
+                model: Transaction,
+                as: 'Transactions',
+                attributes: [],
+                where: whereConditions,
+                required: false // LEFT JOIN to include users with 0 transactions
+            }],
+            group: ['User.id', 'User.username'],
+            order: [[sequelize.literal('transactionSum'), 'DESC']],
+            subQuery: false
+        };
+
+        if (limit && limit > 0) {
+            options.limit = limit;
+        }
+
+        const users = await this.model.findAll(options);
+        
+        // Transform to match UserRanking type with proper amount parsing
+        return users.map(user => ({
+            id: user.id,
+            username: user.username,
+            amount: parseFloat(user.get('transactionSum')) || 0
+        }));
+    }
 }
 
 module.exports = new UserRepository(); 

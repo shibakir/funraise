@@ -54,6 +54,21 @@ const typeDefs = gql`
         Get all achievements for a specific user with progress details
         """
         userAchievements(userId: Int!): [UserAchievement]
+        
+        """
+        Get users ranked by their current balance
+        """
+        usersByBalance(limit: Int): [UserRanking!]!
+        
+        """
+        Get users ranked by their EVENT_INCOME transaction sum after specified date (not older than)
+        """
+        usersByEventIncome(afterDate: String, limit: Int): [UserRanking!]!
+        
+        """
+        Get users ranked by their EVENT_OUTCOME transaction sum after specified date (not older than)
+        """
+        usersByEventOutcome(afterDate: String, limit: Int): [UserRanking!]!
     }
 
     """
@@ -900,6 +915,26 @@ const typeDefs = gql`
         When the account was created
         """
         createdAt: String!
+    }
+
+    """
+    User ranking information with calculated amount
+    """
+    type UserRanking {
+        """
+        User identifier
+        """
+        id: Int!
+        
+        """
+        User's display name
+        """
+        username: String!
+        
+        """
+        Calculated amount (balance or transaction sum)
+        """
+        amount: Float!
     }
 `;
 

@@ -646,6 +646,190 @@ describe('UserRepository', () => {
         });
     });
 
+    describe('findUsersByBalance', () => {
+        it('should find users ranked by balance with limit', async () => {
+            const mockUsers = [
+                { id: 1, username: 'user1', balance: 1000 },
+                { id: 2, username: 'user2', balance: 500 }
+            ];
+            User.findAll.mockResolvedValue(mockUsers);
+
+            const result = await UserRepository.findUsersByBalance(10);
+
+            expect(User.findAll).toHaveBeenCalledWith({
+                attributes: ['id', 'username', 'balance'],
+                order: [['balance', 'DESC']],
+                raw: true,
+                limit: 10
+            });
+            expect(result).toEqual([
+                { id: 1, username: 'user1', amount: 1000 },
+                { id: 2, username: 'user2', amount: 500 }
+            ]);
+        });
+
+        it('should find users ranked by balance without limit', async () => {
+            const mockUsers = [
+                { id: 1, username: 'user1', balance: 1000 }
+            ];
+            User.findAll.mockResolvedValue(mockUsers);
+
+            const result = await UserRepository.findUsersByBalance();
+
+            expect(User.findAll).toHaveBeenCalledWith({
+                attributes: ['id', 'username', 'balance'],
+                order: [['balance', 'DESC']],
+                raw: true
+            });
+            expect(result).toEqual([
+                { id: 1, username: 'user1', amount: 1000 }
+            ]);
+        });
+
+        it('should return empty array if no users found', async () => {
+            User.findAll.mockResolvedValue([]);
+
+            const result = await UserRepository.findUsersByBalance(10);
+
+            expect(result).toEqual([]);
+        });
+
+        it('should handle database errors', async () => {
+            const dbError = new Error('Database connection error');
+            User.findAll.mockRejectedValue(dbError);
+
+            await expect(UserRepository.findUsersByBalance(10))
+                .rejects
+                .toThrow(ApiError);
+        });
+    });
+
+    describe('findUsersByTransactionSum', () => {
+        beforeEach(() => {
+            // Mock Transaction model and sequelize
+            const mockTransaction = {};
+            const mockSequelize = {
+                fn: jest.fn((fnName, field) => `${fnName}(${field})`),
+                col: jest.fn((field) => field)
+            };
+            require('../../model/db').sequelize = mockSequelize;
+            require('../../model').Transaction = mockTransaction;
+        });
+
+        it('should find users ranked by EVENT_INCOME transaction sum with limit', async () => {
+            const mockUsers = [
+                { id: 1, username: 'user1', amount: '500.50' },
+                { id: 2, username: 'user2', amount: '200.25' }
+            ];
+            User.findAll.mockResolvedValue(mockUsers);
+            
+            const beforeDate = new Date('2024-12-31');
+
+            const result = await UserRepository.findUsersByTransactionSum('EVENT_INCOME', beforeDate, 10);
+
+            expect(User.findAll).toHaveBeenCalledWith({
+                attributes: [
+                    'id',
+                    'username',
+                    ['COALESCE(SUM(transactions.amount), 0)', 'amount']
+                ],
+                include: [{
+                    model: require('../../model').Transaction,
+                    as: 'transactions',
+                    attributes: [],
+                    where: {
+                        type: 'EVENT_INCOME',
+                        createdAt: {
+                            [Op.lt]: beforeDate
+                        }
+                    },
+                    required: false
+                }],
+                group: ['User.id', 'User.username'],
+                order: [['COALESCE(SUM(transactions.amount), 0)', 'DESC']],
+                raw: true,
+                limit: 10
+            });
+            expect(result).toEqual([
+                { id: 1, username: 'user1', amount: 500.5 },
+                { id: 2, username: 'user2', amount: 200.25 }
+            ]);
+        });
+
+        it('should find users ranked by EVENT_OUTCOME transaction sum without limit', async () => {
+            const mockUsers = [
+                { id: 1, username: 'user1', amount: '300.75' }
+            ];
+            User.findAll.mockResolvedValue(mockUsers);
+            
+            const beforeDate = new Date('2024-12-31');
+
+            const result = await UserRepository.findUsersByTransactionSum('EVENT_OUTCOME', beforeDate);
+
+            expect(User.findAll).toHaveBeenCalledWith({
+                attributes: [
+                    'id',
+                    'username',
+                    ['COALESCE(SUM(transactions.amount), 0)', 'amount']
+                ],
+                include: [{
+                    model: require('../../model').Transaction,
+                    as: 'transactions',
+                    attributes: [],
+                    where: {
+                        type: 'EVENT_OUTCOME',
+                        createdAt: {
+                            [Op.lt]: beforeDate
+                        }
+                    },
+                    required: false
+                }],
+                group: ['User.id', 'User.username'],
+                order: [['COALESCE(SUM(transactions.amount), 0)', 'DESC']],
+                raw: true
+            });
+            expect(result).toEqual([
+                { id: 1, username: 'user1', amount: 300.75 }
+            ]);
+        });
+
+        it('should handle zero amounts correctly', async () => {
+            const mockUsers = [
+                { id: 1, username: 'user1', amount: '0' }
+            ];
+            User.findAll.mockResolvedValue(mockUsers);
+            
+            const beforeDate = new Date('2024-12-31');
+
+            const result = await UserRepository.findUsersByTransactionSum('EVENT_INCOME', beforeDate, 10);
+
+            expect(result).toEqual([
+                { id: 1, username: 'user1', amount: 0 }
+            ]);
+        });
+
+        it('should return empty array if no users found', async () => {
+            User.findAll.mockResolvedValue([]);
+            
+            const beforeDate = new Date('2024-12-31');
+
+            const result = await UserRepository.findUsersByTransactionSum('EVENT_INCOME', beforeDate, 10);
+
+            expect(result).toEqual([]);
+        });
+
+        it('should handle database errors', async () => {
+            const dbError = new Error('Database connection error');
+            User.findAll.mockRejectedValue(dbError);
+            
+            const beforeDate = new Date('2024-12-31');
+
+            await expect(UserRepository.findUsersByTransactionSum('EVENT_INCOME', beforeDate, 10))
+                .rejects
+                .toThrow(ApiError);
+        });
+    });
+
     describe('edge cases and error handling', () => {
         it('should handle empty string searches', async () => {
             User.findAll.mockResolvedValue([]);

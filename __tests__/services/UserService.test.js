@@ -25,6 +25,8 @@ jest.mock('../../repository', () => ({
         findAllWithAssociations: jest.fn(),
         findAll: jest.fn(),
         searchByUsername: jest.fn(),
+        findUsersByBalance: jest.fn(),
+        findUsersByTransactionSum: jest.fn(),
     },
     AccountRepository: {
         findByUserId: jest.fn()
@@ -953,6 +955,159 @@ describe('UserService', () => {
             await expect(UserService.findByIdWithAccountsOnly(1))
                 .rejects
                 .toThrow('Error finding User by ID');
+        });
+    });
+
+    describe('getUsersByBalance', () => {
+        it('should get users ranked by balance with limit', async () => {
+            const mockRankings = [
+                { id: 1, username: 'user1', amount: 1000 },
+                { id: 2, username: 'user2', amount: 500 }
+            ];
+            UserRepository.findUsersByBalance.mockResolvedValue(mockRankings);
+
+            const result = await UserService.getUsersByBalance(10);
+
+            expect(UserRepository.findUsersByBalance).toHaveBeenCalledWith(10);
+            expect(result).toEqual(mockRankings);
+        });
+
+        it('should get users ranked by balance without limit', async () => {
+            const mockRankings = [
+                { id: 1, username: 'user1', amount: 1000 }
+            ];
+            UserRepository.findUsersByBalance.mockResolvedValue(mockRankings);
+
+            const result = await UserService.getUsersByBalance();
+
+            expect(UserRepository.findUsersByBalance).toHaveBeenCalledWith(undefined);
+            expect(result).toEqual(mockRankings);
+        });
+
+        it('should handle database errors', async () => {
+            UserRepository.findUsersByBalance.mockRejectedValue(new Error('Database error'));
+
+            await expect(UserService.getUsersByBalance(10))
+                .rejects
+                .toThrow('Error getting users by balance');
+        });
+    });
+
+    describe('getUsersByEventIncome', () => {
+        const afterDateString = '2024-01-01T00:00:00.000Z';
+        const afterDate = new Date(afterDateString);
+
+        it('should get users ranked by event income with afterDate and limit', async () => {
+            const mockRankings = [
+                { id: 1, username: 'user1', amount: 500.50 },
+                { id: 2, username: 'user2', amount: 200.25 }
+            ];
+            UserRepository.findUsersByTransactionSum.mockResolvedValue(mockRankings);
+
+            const result = await UserService.getUsersByEventIncome(afterDateString, 10);
+
+            expect(UserRepository.findUsersByTransactionSum).toHaveBeenCalledWith('EVENT_INCOME', afterDate, 10);
+            expect(result).toEqual(mockRankings);
+        });
+
+        it('should get users ranked by event income without afterDate', async () => {
+            const mockRankings = [
+                { id: 1, username: 'user1', amount: 300.75 }
+            ];
+            UserRepository.findUsersByTransactionSum.mockResolvedValue(mockRankings);
+
+            const result = await UserService.getUsersByEventIncome(null, 5);
+
+            expect(UserRepository.findUsersByTransactionSum).toHaveBeenCalledWith('EVENT_INCOME', null, 5);
+            expect(result).toEqual(mockRankings);
+        });
+
+        it('should get users ranked by event income without limit', async () => {
+            const mockRankings = [
+                { id: 1, username: 'user1', amount: 300.75 }
+            ];
+            UserRepository.findUsersByTransactionSum.mockResolvedValue(mockRankings);
+
+            const result = await UserService.getUsersByEventIncome();
+
+            expect(UserRepository.findUsersByTransactionSum).toHaveBeenCalledWith('EVENT_INCOME', null, undefined);
+            expect(result).toEqual(mockRankings);
+        });
+
+        it('should throw error for invalid afterDate format', async () => {
+            await expect(UserService.getUsersByEventIncome('invalid-date', 10))
+                .rejects
+                .toThrow('Invalid afterDate format. Please use ISO string format.');
+        });
+
+        it('should handle database errors', async () => {
+            UserRepository.findUsersByTransactionSum.mockRejectedValue(new Error('Database error'));
+
+            await expect(UserService.getUsersByEventIncome(afterDateString, 10))
+                .rejects
+                .toThrow('Error getting users by event income');
+        });
+    });
+
+    describe('getUsersByEventOutcome', () => {
+        const afterDateString = '2024-01-01T00:00:00.000Z';
+        const afterDate = new Date(afterDateString);
+
+        it('should get users ranked by event outcome with afterDate and limit', async () => {
+            const mockRankings = [
+                { id: 1, username: 'user1', amount: 400.00 },
+                { id: 2, username: 'user2', amount: 150.75 }
+            ];
+            UserRepository.findUsersByTransactionSum.mockResolvedValue(mockRankings);
+
+            const result = await UserService.getUsersByEventOutcome(afterDateString, 20);
+
+            expect(UserRepository.findUsersByTransactionSum).toHaveBeenCalledWith('EVENT_OUTCOME', afterDate, 20);
+            expect(result).toEqual(mockRankings);
+        });
+
+        it('should get users ranked by event outcome without afterDate', async () => {
+            const mockRankings = [
+                { id: 1, username: 'user1', amount: 250.50 }
+            ];
+            UserRepository.findUsersByTransactionSum.mockResolvedValue(mockRankings);
+
+            const result = await UserService.getUsersByEventOutcome(null, 5);
+
+            expect(UserRepository.findUsersByTransactionSum).toHaveBeenCalledWith('EVENT_OUTCOME', null, 5);
+            expect(result).toEqual(mockRankings);
+        });
+
+        it('should get users ranked by event outcome without limit', async () => {
+            const mockRankings = [
+                { id: 1, username: 'user1', amount: 250.50 }
+            ];
+            UserRepository.findUsersByTransactionSum.mockResolvedValue(mockRankings);
+
+            const result = await UserService.getUsersByEventOutcome();
+
+            expect(UserRepository.findUsersByTransactionSum).toHaveBeenCalledWith('EVENT_OUTCOME', null, undefined);
+            expect(result).toEqual(mockRankings);
+        });
+
+        it('should throw error for invalid afterDate format', async () => {
+            await expect(UserService.getUsersByEventOutcome('invalid-after', 5))
+                .rejects
+                .toThrow('Invalid afterDate format. Please use ISO string format.');
+        });
+
+        it('should throw error for empty afterDate string', async () => {
+            await expect(UserService.getUsersByEventOutcome('', 5))
+                .rejects
+                .toThrow('Invalid afterDate format. Please use ISO string format.');
+        });
+
+        it('should handle database errors', async () => {
+            UserRepository.findUsersByTransactionSum.mockRejectedValue(new Error('Database error'));
+
+            await expect(UserService.getUsersByEventOutcome(afterDateString, 5))
+                .rejects
+                .toThrow('Error getting users by event outcome');
         });
     });
 }); 
