@@ -39,15 +39,15 @@ cd path/to/your/project/server
 
 ### Choose Your Setup Method
 
-**Option 1: Docker (Recommended)** - Everything configured automatically
+**Option 1: Docker (Recommended)** - Database created automatically
 ```bash
 make setup && make up
 ```
 
-**Option 2: Local Development** - Manual MySQL setup required
+**Option 2: Local Development** - Manual database creation required
 ```bash
 npm install && cp env.example .env
-# Configure .env file, then:
+# Create MySQL database manually, configure .env file, then:
 npm run dev
 ```
 
@@ -59,12 +59,24 @@ npm install
 ```
 
 ### 2. Setup MySQL Database
-Create a MySQL database and user:
+**Note:** This step is only required for local development. If using Docker, the database is created automatically.
+
+⚠️ **Important:** The application only creates TABLES, not the database itself. In this case, TABLES are created during: 
+```bash
+npm run dev
+```
+
+Create a MySQL database and user manually:
 ```sql
+# Connect to MySQL as root
+mysql -u root -p
+
+# Create database and user
 CREATE DATABASE funraise CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER 'funraise_user'@'localhost' IDENTIFIED BY 'funraise123';
 GRANT ALL PRIVILEGES ON funraise.* TO 'funraise_user'@'localhost';
 FLUSH PRIVILEGES;
+EXIT;
 ```
 
 ### 3. Configure Environment
@@ -94,6 +106,8 @@ npm start
 The server will be available at `http://localhost:3000`
 
 ## Docker Setup
+
+**Why Docker is recommended:** Docker automatically handles MySQL database creation, user setup, and all dependencies without manual database setup required!
 
 ### 1. Initial Setup
 ```bash
@@ -152,21 +166,21 @@ DB_USER=funraise_user
 DB_PASSWORD=your_secure_password
 DB_HOST=localhost  # Use 'db' for Docker
 
-# Discord OAuth (Optional)
+# Discord OAuth
 DISCORD_CLIENT_ID=your_discord_client_id
 DISCORD_CLIENT_SECRET=your_discord_client_secret
 
-# JWT Secrets (Required)
+# JWT Secrets
 JWT_SECRET=your_very_long_jwt_secret_minimum_32_characters
 JWT_REFRESH_SECRET=your_very_long_refresh_secret_minimum_32_characters
 
-# Email Service (Optional)
+# Email Service
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your_email@gmail.com
 SMTP_PASSWORD=your_app_password
 
-# Firebase Storage (Optional)
+# Firebase Storage
 FIREBASE_API_KEY=your_firebase_api_key
 FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
 FIREBASE_PROJECT_ID=your_project_id
