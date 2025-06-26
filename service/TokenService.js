@@ -1,83 +1,89 @@
-const { Token } = require('../model');
 const ApiError = require('../exception/ApiError');
+const { TokenRepository } = require('../repository');
 
+/**
+ * Service layer for managing JWT refresh tokens and user authentication sessions
+ * Handles token storage, validation, cleanup, and session management
+ * Provides secure token operations with proper error handling and cleanup
+ */
 class TokenService {
     /**
-     * Сохраняет refresh token в базу данных
-     * @param {number} userId - ID пользователя
-     * @param {string} refreshToken - Refresh token для сохранения
-     * @returns {Promise<Token>} Сохраненный токен
+     * Saves a refresh token to the database for a specific user
+     * Automatically removes any existing tokens for the user to maintain single session
+     * @param {number} userId - ID of the user
+     * @param {string} refreshToken - JWT refresh token to save
+     * @returns {Promise<Token>} Saved token record
+     * @throws {ApiError} Database error if save operation fails
      */
     async saveToken(userId, refreshToken) {
         try {
-            // Удаляем старый токен пользователя, если есть
-            await Token.destroy({
-                where: { userId }
-            });
+            // Delete old user token if exists to prevent token accumulation
+            await TokenRepository.deleteByUserId(userId);
 
-            // Создаем новый токен
-            const token = await Token.create({
+            // Create new token record for the user
+            const token = await TokenRepository.create({
                 userId,
                 refreshToken
             });
 
             return token;
         } catch (error) {
-            console.error('Error saving token:', error);
             throw ApiError.database('Failed to save refresh token', error);
         }
     }
 
     /**
-     * Находит токен по refresh token
-     * @param {string} refreshToken - Refresh token для поиска
-     * @returns {Promise<Token|null>} Найденный токен или null
+     * Finds and validates a refresh token in the database
+     * Used during token refresh operations to verify token validity
+     * @param {string} refreshToken - JWT refresh token to find and validate
+     * @returns {Promise<Token>} Found token record with user information
+     * @throws {ApiError} Not found error if token doesn't exist or is invalid
      */
     async findToken(refreshToken) {
         try {
-            const token = await Token.findOne({
-                where: { refreshToken }
-            });
-
+            const token = await TokenRepository.findByRefreshToken(refreshToken);
+            if (!token) {
+                throw ApiError.notFound('Refresh token not found');
+            }
             return token;
         } catch (error) {
-            console.error('Error finding token:', error);
+            if (error instanceof ApiError) throw error;
             throw ApiError.database('Failed to find refresh token', error);
         }
     }
 
     /**
-     * Удаляет токен из базы данных
-     * @param {string} refreshToken - Refresh token для удаления
-     * @returns {Promise<boolean>} True если токен был удален
+     * Removes a specific refresh token from the database
+     * Used during logout to invalidate the current session
+     * @param {string} refreshToken - JWT refresh token to delete
+     * @returns {Promise<boolean>} True if token was successfully deleted
+     * @throws {ApiError} Not found error if token doesn't exist or database error
      */
     async removeToken(refreshToken) {
         try {
-            const result = await Token.destroy({
-                where: { refreshToken }
-            });
-
-            return result > 0;
+            const result = await TokenRepository.deleteByRefreshToken(refreshToken);
+            if (result === 0) {
+                throw ApiError.notFound('Refresh token not found');
+            }
+            return true;
         } catch (error) {
-            console.error('Error removing token:', error);
+            if (error instanceof ApiError) throw error;
             throw ApiError.database('Failed to remove refresh token', error);
         }
     }
 
     /**
-     * Удаляет все токены пользователя
-     * @param {number} userId - ID пользователя
-     * @returns {Promise<boolean>} True если токены были удалены
+     * Removes all refresh tokens for a specific user
+     * Used during account deactivation or security cleanup operations
+     * @param {number} userId - ID of the user whose tokens to remove
+     * @returns {Promise<boolean>} True if any tokens were deleted, false if none existed
+     * @throws {ApiError} Database error if deletion operation fails
      */
     async removeUserTokens(userId) {
         try {
-            const result = await Token.destroy({
-                where: { userId }
-            });
-
+            const result = await TokenRepository.deleteByUserId(userId);
             return result > 0;
         } catch (error) {
-            console.error('Error removing user tokens:', error);
             throw ApiError.database('Failed to remove user tokens', error);
         }
     }

@@ -1,11 +1,20 @@
+// Mock dependencies
+jest.mock('../../repository', () => ({
+    EventEndConditionRepository: {
+        create: jest.fn(),
+        findByEventWithConditions: jest.fn(),
+        findByPk: jest.fn(),
+        updateCompletion: jest.fn(),
+        updateFailure: jest.fn(),
+        findByEventId: jest.fn()
+    }
+}));
+jest.mock('../../service/EndConditionService');
+
 const EventEndConditionService = require('../../service/EventEndConditionService');
-const { EventEndCondition } = require('../../model');
+const { EventEndConditionRepository } = require('../../repository');
 const EndConditionService = require('../../service/EndConditionService');
 const ApiError = require('../../exception/ApiError');
-
-// Mock dependencies
-jest.mock('../../model');
-jest.mock('../../service/EndConditionService');
 
 describe('EventEndConditionService', () => {
     beforeEach(() => {
@@ -55,14 +64,14 @@ describe('EventEndConditionService', () => {
                 endConditionId: 1
             };
 
-            EventEndCondition.create.mockResolvedValue(mockEventEndCondition);
+            EventEndConditionRepository.create.mockResolvedValue(mockEventEndCondition);
             EndConditionService.create
                 .mockResolvedValueOnce(mockEndCondition1)
                 .mockResolvedValueOnce(mockEndCondition2);
 
             const result = await EventEndConditionService.create(validEventEndConditionData);
 
-            expect(EventEndCondition.create).toHaveBeenCalledWith({
+            expect(EventEndConditionRepository.create).toHaveBeenCalledWith({
                 eventId: 1
             });
             expect(EndConditionService.create).toHaveBeenCalledTimes(2);
@@ -108,12 +117,12 @@ describe('EventEndConditionService', () => {
                 endConditionId: 2
             };
 
-            EventEndCondition.create.mockResolvedValue(mockEventEndCondition);
+            EventEndConditionRepository.create.mockResolvedValue(mockEventEndCondition);
             EndConditionService.create.mockResolvedValue(mockEndCondition);
 
             const result = await EventEndConditionService.create(singleConditionData);
 
-            expect(EventEndCondition.create).toHaveBeenCalledWith({
+            expect(EventEndConditionRepository.create).toHaveBeenCalledWith({
                 eventId: 2
             });
             expect(EndConditionService.create).toHaveBeenCalledTimes(1);
@@ -122,7 +131,7 @@ describe('EventEndConditionService', () => {
 
         it('should handle error when creating a group of conditions', async () => {
             const dbError = new Error('Database connection error');
-            EventEndCondition.create.mockRejectedValue(dbError);
+            EventEndConditionRepository.create.mockRejectedValue(dbError);
 
             await expect(EventEndConditionService.create(validEventEndConditionData))
                 .rejects
@@ -138,7 +147,7 @@ describe('EventEndConditionService', () => {
             };
 
             const endConditionError = new Error('EndCondition creation error');
-            EventEndCondition.create.mockResolvedValue(mockEventEndCondition);
+            EventEndConditionRepository.create.mockResolvedValue(mockEventEndCondition);
             EndConditionService.create.mockRejectedValue(endConditionError);
 
             await expect(EventEndConditionService.create(validEventEndConditionData))
@@ -159,11 +168,11 @@ describe('EventEndConditionService', () => {
                 isFailed: false
             };
 
-            EventEndCondition.create.mockResolvedValue(mockEventEndCondition);
+            EventEndConditionRepository.create.mockResolvedValue(mockEventEndCondition);
 
             const result = await EventEndConditionService.create(emptyConditionsData);
 
-            expect(EventEndCondition.create).toHaveBeenCalledWith({
+            expect(EventEndConditionRepository.create).toHaveBeenCalledWith({
                 eventId: 3
             });
             expect(EndConditionService.create).not.toHaveBeenCalled();
@@ -198,22 +207,16 @@ describe('EventEndConditionService', () => {
                 }
             ];
 
-            EventEndCondition.findAll.mockResolvedValue(mockEventEndConditions);
+            EventEndConditionRepository.findByEventWithConditions.mockResolvedValue(mockEventEndConditions);
 
             const result = await EventEndConditionService.findByEventWithConditions(1);
 
-            expect(EventEndCondition.findAll).toHaveBeenCalledWith({
-                where: { eventId: 1 },
-                include: [{
-                    model: require('../../model').EndCondition,
-                    as: 'conditions'
-                }]
-            });
+            expect(EventEndConditionRepository.findByEventWithConditions).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockEventEndConditions);
         });
 
         it('should return empty array if conditions are not found', async () => {
-            EventEndCondition.findAll.mockResolvedValue([]);
+            EventEndConditionRepository.findByEventWithConditions.mockResolvedValue([]);
 
             const result = await EventEndConditionService.findByEventWithConditions(999);
 
@@ -222,7 +225,7 @@ describe('EventEndConditionService', () => {
 
         it('should handle database error', async () => {
             const dbError = new Error('Database connection error');
-            EventEndCondition.findAll.mockRejectedValue(dbError);
+            EventEndConditionRepository.findByEventWithConditions.mockRejectedValue(dbError);
 
             await expect(EventEndConditionService.findByEventWithConditions(1))
                 .rejects
@@ -241,16 +244,16 @@ describe('EventEndConditionService', () => {
                 updatedAt: new Date()
             };
 
-            EventEndCondition.findByPk.mockResolvedValue(mockEventEndCondition);
+            EventEndConditionRepository.findByPk.mockResolvedValue(mockEventEndCondition);
 
             const result = await EventEndConditionService.findById(1);
 
-            expect(EventEndCondition.findByPk).toHaveBeenCalledWith(1);
+            expect(EventEndConditionRepository.findByPk).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockEventEndCondition);
         });
 
         it('should return null if condition is not found', async () => {
-            EventEndCondition.findByPk.mockResolvedValue(null);
+            EventEndConditionRepository.findByPk.mockResolvedValue(null);
 
             const result = await EventEndConditionService.findById(999);
 
@@ -259,7 +262,7 @@ describe('EventEndConditionService', () => {
 
         it('should handle database error', async () => {
             const dbError = new Error('Database connection error');
-            EventEndCondition.findByPk.mockRejectedValue(dbError);
+            EventEndConditionRepository.findByPk.mockRejectedValue(dbError);
 
             await expect(EventEndConditionService.findById(1))
                 .rejects
@@ -269,31 +272,25 @@ describe('EventEndConditionService', () => {
 
     describe('updateCompletion', () => {
         it('should successfully update completion status', async () => {
-            EventEndCondition.update.mockResolvedValue([1]); // one record updated
+            EventEndConditionRepository.updateCompletion.mockResolvedValue([1]); // one record updated
 
             const result = await EventEndConditionService.updateCompletion(1, true);
 
-            expect(EventEndCondition.update).toHaveBeenCalledWith(
-                { isCompleted: true },
-                { where: { id: 1 } }
-            );
+            expect(EventEndConditionRepository.updateCompletion).toHaveBeenCalledWith(1, true);
             expect(result).toEqual([1]);
         });
 
         it('should update completion status to false', async () => {
-            EventEndCondition.update.mockResolvedValue([1]);
+            EventEndConditionRepository.updateCompletion.mockResolvedValue([1]);
 
             const result = await EventEndConditionService.updateCompletion(2, false);
 
-            expect(EventEndCondition.update).toHaveBeenCalledWith(
-                { isCompleted: false },
-                { where: { id: 2 } }
-            );
+            expect(EventEndConditionRepository.updateCompletion).toHaveBeenCalledWith(2, false);
             expect(result).toEqual([1]);
         });
 
         it('should return [0] if condition is not found', async () => {
-            EventEndCondition.update.mockResolvedValue([0]); // records not found
+            EventEndConditionRepository.updateCompletion.mockResolvedValue([0]); // records not found
 
             const result = await EventEndConditionService.updateCompletion(999, true);
 
@@ -302,7 +299,7 @@ describe('EventEndConditionService', () => {
 
         it('should handle database error when updating', async () => {
             const dbError = new Error('Database constraint error');
-            EventEndCondition.update.mockRejectedValue(dbError);
+            EventEndConditionRepository.updateCompletion.mockRejectedValue(dbError);
 
             await expect(EventEndConditionService.updateCompletion(1, true))
                 .rejects
@@ -312,31 +309,25 @@ describe('EventEndConditionService', () => {
 
     describe('updateFailure', () => {
         it('should successfully update failure status', async () => {
-            EventEndCondition.update.mockResolvedValue([1]); // one record updated
+            EventEndConditionRepository.updateFailure.mockResolvedValue([1]); // one record updated
 
             const result = await EventEndConditionService.updateFailure(1, true);
 
-            expect(EventEndCondition.update).toHaveBeenCalledWith(
-                { isFailed: true },
-                { where: { id: 1 } }
-            );
+            expect(EventEndConditionRepository.updateFailure).toHaveBeenCalledWith(1, true);
             expect(result).toEqual([1]);
         });
 
         it('should update failure status to false', async () => {
-            EventEndCondition.update.mockResolvedValue([1]);
+            EventEndConditionRepository.updateFailure.mockResolvedValue([1]);
 
             const result = await EventEndConditionService.updateFailure(2, false);
 
-            expect(EventEndCondition.update).toHaveBeenCalledWith(
-                { isFailed: false },
-                { where: { id: 2 } }
-            );
+            expect(EventEndConditionRepository.updateFailure).toHaveBeenCalledWith(2, false);
             expect(result).toEqual([1]);
         });
 
         it('should return [0] if condition is not found', async () => {
-            EventEndCondition.update.mockResolvedValue([0]); // records not found
+            EventEndConditionRepository.updateFailure.mockResolvedValue([0]); // records not found
 
             const result = await EventEndConditionService.updateFailure(999, true);
 
@@ -345,7 +336,7 @@ describe('EventEndConditionService', () => {
 
         it('should handle database error when updating', async () => {
             const dbError = new Error('Database constraint error');
-            EventEndCondition.update.mockRejectedValue(dbError);
+            EventEndConditionRepository.updateFailure.mockRejectedValue(dbError);
 
             await expect(EventEndConditionService.updateFailure(1, true))
                 .rejects
@@ -388,22 +379,16 @@ describe('EventEndConditionService', () => {
                 }
             ];
 
-            EventEndCondition.findAll.mockResolvedValue(mockEventEndConditions);
+            EventEndConditionRepository.findByEventId.mockResolvedValue(mockEventEndConditions);
 
             const result = await EventEndConditionService.findByEventId(1);
 
-            expect(EventEndCondition.findAll).toHaveBeenCalledWith({
-                where: { eventId: 1 },
-                include: [{
-                    model: require('../../model').EndCondition,
-                    as: 'conditions'
-                }]
-            });
+            expect(EventEndConditionRepository.findByEventId).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockEventEndConditions);
         });
 
         it('should return empty array if conditions are not found', async () => {
-            EventEndCondition.findAll.mockResolvedValue([]);
+            EventEndConditionRepository.findByEventId.mockResolvedValue([]);
 
             const result = await EventEndConditionService.findByEventId(999);
 
@@ -412,7 +397,7 @@ describe('EventEndConditionService', () => {
 
         it('should handle database error', async () => {
             const dbError = new Error('Database connection error');
-            EventEndCondition.findAll.mockRejectedValue(dbError);
+            EventEndConditionRepository.findByEventId.mockRejectedValue(dbError);
 
             await expect(EventEndConditionService.findByEventId(1))
                 .rejects
@@ -428,7 +413,7 @@ describe('EventEndConditionService', () => {
             };
 
             const dbError = new Error('Invalid eventId type');
-            EventEndCondition.create.mockRejectedValue(dbError);
+            EventEndConditionRepository.create.mockRejectedValue(dbError);
 
             await expect(EventEndConditionService.create(invalidData))
                 .rejects
@@ -437,7 +422,7 @@ describe('EventEndConditionService', () => {
 
         it('should handle invalid data for ID in search methods', async () => {
             const dbError = new Error('Invalid ID type');
-            EventEndCondition.findByPk.mockRejectedValue(dbError);
+            EventEndConditionRepository.findByPk.mockRejectedValue(dbError);
 
             await expect(EventEndConditionService.findById('invalid_id'))
                 .rejects
@@ -445,37 +430,25 @@ describe('EventEndConditionService', () => {
         });
 
         it('should handle invalid boolean values in updateCompletion', async () => {
-            EventEndCondition.update.mockResolvedValue([1]);
+            EventEndConditionRepository.updateCompletion.mockResolvedValue([1]);
 
             // Test with various "truthy" values
             await EventEndConditionService.updateCompletion(1, 1);
-            expect(EventEndCondition.update).toHaveBeenCalledWith(
-                { isCompleted: 1 },
-                { where: { id: 1 } }
-            );
+            expect(EventEndConditionRepository.updateCompletion).toHaveBeenCalledWith(1, 1);
 
             await EventEndConditionService.updateCompletion(1, 0);
-            expect(EventEndCondition.update).toHaveBeenCalledWith(
-                { isCompleted: 0 },
-                { where: { id: 1 } }
-            );
+            expect(EventEndConditionRepository.updateCompletion).toHaveBeenCalledWith(1, 0);
         });
 
         it('should handle invalid boolean values in updateFailure', async () => {
-            EventEndCondition.update.mockResolvedValue([1]);
+            EventEndConditionRepository.updateFailure.mockResolvedValue([1]);
 
             // Test with various "truthy" values
             await EventEndConditionService.updateFailure(1, 'true');
-            expect(EventEndCondition.update).toHaveBeenCalledWith(
-                { isFailed: 'true' },
-                { where: { id: 1 } }
-            );
+            expect(EventEndConditionRepository.updateFailure).toHaveBeenCalledWith(1, 'true');
 
             await EventEndConditionService.updateFailure(1, null);
-            expect(EventEndCondition.update).toHaveBeenCalledWith(
-                { isFailed: null },
-                { where: { id: 1 } }
-            );
+            expect(EventEndConditionRepository.updateFailure).toHaveBeenCalledWith(1, null);
         });
     });
 
@@ -509,7 +482,7 @@ describe('EventEndConditionService', () => {
                 isFailed: false
             };
 
-            EventEndCondition.create.mockResolvedValue(mockEventEndCondition);
+            EventEndConditionRepository.create.mockResolvedValue(mockEventEndCondition);
             EndConditionService.create.mockResolvedValue({});
 
             const result = await EventEndConditionService.create(allConditionTypesData);
@@ -557,7 +530,7 @@ describe('EventEndConditionService', () => {
                 isFailed: false
             };
 
-            EventEndCondition.create.mockResolvedValue(mockEventEndCondition);
+            EventEndConditionRepository.create.mockResolvedValue(mockEventEndCondition);
             EndConditionService.create.mockResolvedValue({});
 
             const result = await EventEndConditionService.create(allOperatorsData);

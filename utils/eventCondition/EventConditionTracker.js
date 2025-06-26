@@ -2,7 +2,6 @@
 let eventService = null;
 let eventEndConditionService = null;
 let endConditionService = null;
-let participationService = null;
 let transactionService = null;
 let pubsub = null;
 let SUBSCRIPTION_EVENTS = null;
@@ -30,13 +29,6 @@ function getEndConditionService() {
         endConditionService = require('../../service').endConditionService;
     }
     return endConditionService;
-}
-
-function getParticipationService() {
-    if (!participationService) {
-        participationService = require('../../service').participationService;
-    }
-    return participationService;
 }
 
 function getTransactionService() {
@@ -146,7 +138,7 @@ class EventConditionTracker {
      * @returns {number|boolean} Current value
      */
     async getCurrentValue(endCondition, eventId) {
-        const conditionType = endCondition.name; // Теперь это enum ConditionType
+        const conditionType = endCondition.name;
 
         switch (conditionType) {
             case CONDITION_TYPES.PARTICIPATION:

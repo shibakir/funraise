@@ -1,4 +1,5 @@
 const { userService, participationService } = require('../../../service');
+const { handleServiceError } = require('../../utils/errorHandler');
 
 /**
  * GraphQL resolvers for User-related operations
@@ -74,7 +75,7 @@ const userResolvers = {
                 return updatedUser;
             } catch (error) {
                 console.error('Error updating user:', error);
-                throw new Error(error.message || 'Failed to update user');
+                handleServiceError(error, 'Failed to update user');
             }
         },
     },

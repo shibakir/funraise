@@ -1,5 +1,22 @@
 // Mock dependencies before any imports
-jest.mock('../../model');
+jest.mock('../../repository', () => ({
+    EventRepository: {
+        create: jest.fn(),
+        findByIdWithParticipants: jest.fn(),
+        findByUser: jest.fn(),
+        updateStatus: jest.fn(),
+        findByIdWithEndConditions: jest.fn(),
+        findActiveEvents: jest.fn(),
+        findByIdWithOptionalEndConditions: jest.fn(),
+        findAllWithOptionalEndConditions: jest.fn(),
+        findCreator: jest.fn(),
+        findRecipient: jest.fn()
+    },
+    ParticipationRepository: {
+        findByEvent: jest.fn(),
+        findByEventForCalculation: jest.fn()
+    }
+}));
 jest.mock('../../service/EventEndConditionService');
 jest.mock('../../utils/media/FirebaseStorageService');
 jest.mock('../../utils/achievement', () => ({
@@ -17,12 +34,15 @@ jest.mock('../../constants', () => ({
         DONATION: 'DONATION',
         FUNDRAISING: 'FUNDRAISING',
         JACKPOT: 'JACKPOT'
+    },
+    CONDITION_TYPES: {
+        TIME: 'TIME'
     }
 }));
 
 // Import after mocks are set up
 const EventService = require('../../service/EventService');
-const { Event, EventEndCondition, EndCondition, Participation, User } = require('../../model');
+const { EventRepository, ParticipationRepository } = require('../../repository');
 const ApiError = require('../../exception/ApiError');
 const EventEndConditionService = require('../../service/EventEndConditionService');
 const { firebaseStorageService } = require('../../utils/media/FirebaseStorageService');
@@ -74,7 +94,7 @@ describe('EventService', () => {
                 imageUrl: 'https://firebase.com/uploaded-image.jpg'
             };
 
-            Event.create.mockResolvedValue(mockEvent);
+            EventRepository.create.mockResolvedValue(mockEvent);
             EventEndConditionService.create.mockResolvedValue({
                 id: 1,
                 eventId: 1
@@ -84,7 +104,7 @@ describe('EventService', () => {
             const result = await EventService.create(eventDataWithRequiredImage);
 
             expect(firebaseStorageService.uploadImage).toHaveBeenCalled();
-            expect(Event.create).toHaveBeenCalledWith({
+            expect(EventRepository.create).toHaveBeenCalledWith({
                 name: eventDataWithRequiredImage.name,
                 description: eventDataWithRequiredImage.description,
                 type: eventDataWithRequiredImage.type,
@@ -113,7 +133,7 @@ describe('EventService', () => {
                 imageUrl: 'https://firebase.com/image.jpg'
             };
 
-            Event.create.mockResolvedValue(mockEvent);
+            EventRepository.create.mockResolvedValue(mockEvent);
             EventEndConditionService.create.mockResolvedValue({
                 id: 1,
                 eventId: 1
@@ -123,7 +143,7 @@ describe('EventService', () => {
             const result = await EventService.create(eventDataWithImage);
 
             expect(firebaseStorageService.uploadImage).toHaveBeenCalled();
-            expect(Event.create).toHaveBeenCalledWith({
+            expect(EventRepository.create).toHaveBeenCalledWith({
                 name: eventDataWithImage.name,
                 description: eventDataWithImage.description,
                 type: eventDataWithImage.type,
@@ -166,7 +186,7 @@ describe('EventService', () => {
                 ]
             };
 
-            Event.create.mockResolvedValue({
+            EventRepository.create.mockResolvedValue({
                 id: 1,
                 ...fundraisingEvent,
                 recipientId: 1
@@ -179,7 +199,7 @@ describe('EventService', () => {
 
             await EventService.create(fundraisingEvent);
 
-            expect(Event.create).toHaveBeenCalledWith({
+            expect(EventRepository.create).toHaveBeenCalledWith({
                 name: fundraisingEvent.name,
                 description: fundraisingEvent.description,
                 type: fundraisingEvent.type,
@@ -205,7 +225,7 @@ describe('EventService', () => {
                 ]
             };
 
-            Event.create.mockResolvedValue({
+            EventRepository.create.mockResolvedValue({
                 id: 1,
                 ...donationEvent,
                 recipientId: 1
@@ -218,7 +238,7 @@ describe('EventService', () => {
 
             await EventService.create(donationEvent);
 
-            expect(Event.create).toHaveBeenCalledWith({
+            expect(EventRepository.create).toHaveBeenCalledWith({
                 name: donationEvent.name,
                 description: donationEvent.description,
                 type: donationEvent.type,
@@ -228,14 +248,13 @@ describe('EventService', () => {
             });
         });
 
-        it('should throw a validation error if imageFile is missing', async () => {
+        it('should successfully create event without image', async () => {
             const dataWithoutImage = {
                 name: 'Test Event',
                 description: 'Test event description',
                 type: 'FUNDRAISING',
                 userId: 1,
                 recipientId: 2,
-                // imageFile is missing - should cause validation error
                 eventEndConditionGroups: [
                     {
                         conditions: [
@@ -245,29 +264,30 @@ describe('EventService', () => {
                 ]
             };
 
-            await expect(EventService.create(dataWithoutImage))
-                .rejects
-                .toThrow('"imageFile" is required');
-        });
-
-        it('should throw a validation error if the data is invalid', async () => {
-            const invalidData = {
-                name: '', // empty name
-                type: 'INVALID_TYPE', 
-                userId: 1,
-                imageFile: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAA',
-                eventEndConditionGroups: [
-                    {
-                        conditions: [
-                            { name: 'AMOUNT', operator: 'GREATER_EQUALS', value: '1000' }
-                        ]
-                    }
-                ]
+            const mockEvent = {
+                id: 1,
+                ...dataWithoutImage,
+                imageUrl: null
             };
 
-            await expect(EventService.create(invalidData))
-                .rejects
-                .toThrow();
+            EventRepository.create.mockResolvedValue(mockEvent);
+            EventEndConditionService.create.mockResolvedValue({
+                id: 1,
+                eventId: 1
+            });
+
+            const result = await EventService.create(dataWithoutImage);
+
+            expect(firebaseStorageService.uploadImage).not.toHaveBeenCalled();
+            expect(EventRepository.create).toHaveBeenCalledWith({
+                name: dataWithoutImage.name,
+                description: dataWithoutImage.description,
+                type: dataWithoutImage.type,
+                imageUrl: null,
+                userId: dataWithoutImage.userId,
+                recipientId: dataWithoutImage.recipientId
+            });
+            expect(result).toEqual(mockEvent);
         });
 
         it('should throw error if image is too large', async () => {
@@ -361,7 +381,7 @@ describe('EventService', () => {
                 ]
             };
 
-            Event.create.mockRejectedValue(new Error('Database error'));
+            EventRepository.create.mockRejectedValue(new Error('Database error'));
             firebaseStorageService.uploadImage.mockResolvedValue('https://firebase.com/image.jpg');
 
             await expect(EventService.create(eventData))
@@ -388,7 +408,7 @@ describe('EventService', () => {
 
             const mockEvent = { id: 1, ...eventData };
 
-            Event.create.mockResolvedValue(mockEvent);
+            EventRepository.create.mockResolvedValue(mockEvent);
             EventEndConditionService.create.mockResolvedValue({
                 id: 1,
                 eventId: 1
@@ -417,22 +437,11 @@ describe('EventService', () => {
                 ]
             };
 
-            Event.findByPk.mockResolvedValue(mockEvent);
+            EventRepository.findByIdWithOptionalEndConditions.mockResolvedValue(mockEvent);
 
             const result = await EventService.findById(1, true);
 
-            expect(Event.findByPk).toHaveBeenCalledWith(1, {
-                include: [
-                    {
-                        model: EventEndCondition,
-                        as: 'endConditions',
-                        include: [{
-                            model: EndCondition,
-                            as: 'conditions'
-                        }]
-                    }
-                ]
-            });
+            expect(EventRepository.findByIdWithOptionalEndConditions).toHaveBeenCalledWith(1, true);
             expect(result).toEqual(mockEvent);
         });
 
@@ -442,26 +451,25 @@ describe('EventService', () => {
                 name: 'Test Event'
             };
 
-            Event.findByPk.mockResolvedValue(mockEvent);
+            EventRepository.findByIdWithOptionalEndConditions.mockResolvedValue(mockEvent);
 
             const result = await EventService.findById(1, false);
 
-            expect(Event.findByPk).toHaveBeenCalledWith(1, {
-                include: []
-            });
+            expect(EventRepository.findByIdWithOptionalEndConditions).toHaveBeenCalledWith(1, false);
             expect(result).toEqual(mockEvent);
         });
 
         it('should throw an error if the event is not found', async () => {
-            Event.findByPk.mockResolvedValue(null);
+            const notFoundError = new Error('Event not found');
+            EventRepository.findByIdWithOptionalEndConditions.mockRejectedValue(notFoundError);
 
             await expect(EventService.findById(999))
                 .rejects
-                .toThrow('Event not found');
+                .toThrow('Error finding event by ID');
         });
 
         it('should handle database errors', async () => {
-            Event.findByPk.mockRejectedValue(new Error('Database error'));
+            EventRepository.findByIdWithOptionalEndConditions.mockRejectedValue(new Error('Database error'));
 
             await expect(EventService.findById(1))
                 .rejects
@@ -484,22 +492,11 @@ describe('EventService', () => {
                 }
             ];
 
-            Event.findAll.mockResolvedValue(mockEvents);
+            EventRepository.findAllWithOptionalEndConditions.mockResolvedValue(mockEvents);
 
             const result = await EventService.findAll(true);
 
-            expect(Event.findAll).toHaveBeenCalledWith({
-                include: [
-                    {
-                        model: EventEndCondition,
-                        as: 'endConditions',
-                        include: [{
-                            model: EndCondition,
-                            as: 'conditions'
-                        }]
-                    }
-                ]
-            });
+            expect(EventRepository.findAllWithOptionalEndConditions).toHaveBeenCalledWith(true);
             expect(result).toEqual(mockEvents);
         });
 
@@ -509,18 +506,16 @@ describe('EventService', () => {
                 { id: 2, name: 'Event 2' }
             ];
 
-            Event.findAll.mockResolvedValue(mockEvents);
+            EventRepository.findAllWithOptionalEndConditions.mockResolvedValue(mockEvents);
 
             const result = await EventService.findAll(false);
 
-            expect(Event.findAll).toHaveBeenCalledWith({
-                include: []
-            });
+            expect(EventRepository.findAllWithOptionalEndConditions).toHaveBeenCalledWith(false);
             expect(result).toEqual(mockEvents);
         });
 
         it('should handle database errors in findAll', async () => {
-            Event.findAll.mockRejectedValue(new Error('Database error'));
+            EventRepository.findAllWithOptionalEndConditions.mockRejectedValue(new Error('Database error'));
 
             await expect(EventService.findAll())
                 .rejects
@@ -536,19 +531,16 @@ describe('EventService', () => {
                 { deposit: 150 }
             ];
 
-            Participation.findAll.mockResolvedValue(mockParticipations);
+            ParticipationRepository.findByEventForCalculation.mockResolvedValue(mockParticipations);
 
             const result = await EventService.calculateBankAmount(1);
 
-            expect(Participation.findAll).toHaveBeenCalledWith({
-                where: { eventId: 1 },
-                attributes: ['deposit']
-            });
+            expect(ParticipationRepository.findByEventForCalculation).toHaveBeenCalledWith(1);
             expect(result).toBe(450);
         });
 
         it('should return 0 if no participations exist', async () => {
-            Participation.findAll.mockResolvedValue([]);
+            ParticipationRepository.findByEventForCalculation.mockResolvedValue([]);
 
             const result = await EventService.calculateBankAmount(1);
 
@@ -562,7 +554,7 @@ describe('EventService', () => {
                 { deposit: 200 }
             ];
 
-            Participation.findAll.mockResolvedValue(mockParticipations);
+            ParticipationRepository.findByEventForCalculation.mockResolvedValue(mockParticipations);
 
             const result = await EventService.calculateBankAmount(1);
 
@@ -570,7 +562,7 @@ describe('EventService', () => {
         });
 
         it('should handle database errors in calculateBankAmount', async () => {
-            Participation.findAll.mockRejectedValue(new Error('Database error'));
+            ParticipationRepository.findByEventForCalculation.mockRejectedValue(new Error('Database error'));
 
             await expect(EventService.calculateBankAmount(1))
                 .rejects
@@ -580,19 +572,16 @@ describe('EventService', () => {
 
     describe('updateStatus', () => {
         it('should successfully update the event status', async () => {
-            Event.update.mockResolvedValue([1]);
+            EventRepository.updateStatus.mockResolvedValue([1]);
 
             const result = await EventService.updateStatus(1, 'COMPLETED');
 
-            expect(Event.update).toHaveBeenCalledWith(
-                { status: 'COMPLETED' },
-                { where: { id: 1 } }
-            );
+            expect(EventRepository.updateStatus).toHaveBeenCalledWith(1, 'COMPLETED');
             expect(result).toEqual([1]);
         });
 
         it('should handle database errors in updateStatus', async () => {
-            Event.update.mockRejectedValue(new Error('Database error'));
+            EventRepository.updateStatus.mockRejectedValue(new Error('Database error'));
 
             await expect(EventService.updateStatus(1, 'COMPLETED'))
                 .rejects
@@ -607,32 +596,24 @@ describe('EventService', () => {
                 { id: 2, name: 'Event 2', userId: 1 }
             ];
 
-            Event.findAll.mockResolvedValue(mockEvents);
+            EventRepository.findByUser.mockResolvedValue(mockEvents);
 
             const result = await EventService.findByUser(1, 10);
 
-            expect(Event.findAll).toHaveBeenCalledWith({
-                where: { userId: 1 },
-                order: [['createdAt', 'DESC']],
-                limit: 10
-            });
+            expect(EventRepository.findByUser).toHaveBeenCalledWith(1, 10);
             expect(result).toEqual(mockEvents);
         });
 
         it('should use the default limit', async () => {
-            Event.findAll.mockResolvedValue([]);
+            EventRepository.findByUser.mockResolvedValue([]);
 
             await EventService.findByUser(1);
 
-            expect(Event.findAll).toHaveBeenCalledWith({
-                where: { userId: 1 },
-                order: [['createdAt', 'DESC']],
-                limit: 30
-            });
+            expect(EventRepository.findByUser).toHaveBeenCalledWith(1, 30);
         });
 
         it('should handle database errors in findByUser', async () => {
-            Event.findAll.mockRejectedValue(new Error('Database error'));
+            EventRepository.findByUser.mockRejectedValue(new Error('Database error'));
 
             await expect(EventService.findByUser(1))
                 .rejects
@@ -656,23 +637,11 @@ describe('EventService', () => {
                 }
             ];
 
-            Event.findAll.mockResolvedValue(mockEvents);
+            EventRepository.findActiveEvents.mockResolvedValue(mockEvents);
 
             await EventService.checkTimeConditions();
 
-            expect(Event.findAll).toHaveBeenCalledWith({
-                where: { status: 'IN_PROGRESS' },
-                include: [{
-                    model: EventEndCondition,
-                    as: 'endConditions',
-                    include: [{
-                        model: EndCondition,
-                        as: 'conditions',
-                        where: { name: 'TIME' },
-                        required: false
-                    }]
-                }]
-            });
+            expect(EventRepository.findActiveEvents).toHaveBeenCalled();
             expect(eventConditions.onTimeCheck).toHaveBeenCalledWith(1);
         });
 
@@ -691,7 +660,7 @@ describe('EventService', () => {
                 }
             ];
 
-            Event.findAll.mockResolvedValue(mockEvents);
+            EventRepository.findActiveEvents.mockResolvedValue(mockEvents);
 
             await EventService.checkTimeConditions();
 
@@ -707,7 +676,7 @@ describe('EventService', () => {
                 }
             ];
 
-            Event.findAll.mockResolvedValue(mockEvents);
+            EventRepository.findActiveEvents.mockResolvedValue(mockEvents);
 
             await EventService.checkTimeConditions();
 
@@ -715,7 +684,7 @@ describe('EventService', () => {
         });
 
         it('should handle database errors in checkTimeConditions', async () => {
-            Event.findAll.mockRejectedValue(new Error('Database error'));
+            EventRepository.findActiveEvents.mockRejectedValue(new Error('Database error'));
 
             await expect(EventService.checkTimeConditions())
                 .rejects
@@ -737,26 +706,16 @@ describe('EventService', () => {
                 ]
             };
 
-            Event.findByPk.mockResolvedValue(mockEvent);
+            EventRepository.findByIdWithParticipants.mockResolvedValue(mockEvent);
 
             const result = await EventService.findByIdWithParticipants(1);
 
-            expect(Event.findByPk).toHaveBeenCalledWith(1, {
-                include: [{
-                    model: Participation,
-                    as: 'participations',
-                    include: [{
-                        model: require('../../model').User,
-                        as: 'user',
-                        attributes: ['id', 'balance']
-                    }]
-                }]
-            });
+            expect(EventRepository.findByIdWithParticipants).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockEvent);
         });
 
         it('should handle database errors in findByIdWithParticipants', async () => {
-            Event.findByPk.mockRejectedValue(new Error('Database error'));
+            EventRepository.findByIdWithParticipants.mockRejectedValue(new Error('Database error'));
 
             await expect(EventService.findByIdWithParticipants(1))
                 .rejects
@@ -777,25 +736,16 @@ describe('EventService', () => {
                 ]
             };
 
-            Event.findByPk.mockResolvedValue(mockEvent);
+            EventRepository.findByIdWithEndConditions.mockResolvedValue(mockEvent);
 
             const result = await EventService.findByIdWithEndConditions(1);
 
-            expect(Event.findByPk).toHaveBeenCalledWith(1, {
-                include: [{
-                    model: EventEndCondition,
-                    as: 'endConditions',
-                    include: [{
-                        model: EndCondition,
-                        as: 'conditions'
-                    }]
-                }]
-            });
+            expect(EventRepository.findByIdWithEndConditions).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockEvent);
         });
 
         it('should handle database errors in findByIdWithEndConditions', async () => {
-            Event.findByPk.mockRejectedValue(new Error('Database error'));
+            EventRepository.findByIdWithEndConditions.mockRejectedValue(new Error('Database error'));
 
             await expect(EventService.findByIdWithEndConditions(1))
                 .rejects
@@ -805,26 +755,18 @@ describe('EventService', () => {
 
     describe('findCreator', () => {
         it('should find event creator', async () => {
-            const mockEvent = {
-                id: 1,
-                creator: { id: 1, username: 'test' }
-            };
+            const mockCreator = { id: 1, username: 'test' };
 
-            Event.findByPk.mockResolvedValue(mockEvent);
+            EventRepository.findCreator.mockResolvedValue(mockCreator);
 
             const result = await EventService.findCreator(1);
 
-            expect(Event.findByPk).toHaveBeenCalledWith(1, {
-                include: [{
-                    model: User,
-                    as: 'creator'
-                }]
-            });
-            expect(result).toEqual(mockEvent.creator);
+            expect(EventRepository.findCreator).toHaveBeenCalledWith(1);
+            expect(result).toEqual(mockCreator);
         });
 
         it('should return null if event not found', async () => {
-            Event.findByPk.mockResolvedValue(null);
+            EventRepository.findCreator.mockResolvedValue(null);
 
             const result = await EventService.findCreator(1);
 
@@ -832,7 +774,7 @@ describe('EventService', () => {
         });
 
         it('should handle database errors in findCreator', async () => {
-            Event.findByPk.mockRejectedValue(new Error('Database error'));
+            EventRepository.findCreator.mockRejectedValue(new Error('Database error'));
 
             await expect(EventService.findCreator(1))
                 .rejects
@@ -842,26 +784,18 @@ describe('EventService', () => {
 
     describe('findRecipient', () => {
         it('should find event recipient', async () => {
-            const mockEvent = {
-                id: 1,
-                recipient: { id: 2, username: 'recipient' }
-            };
+            const mockRecipient = { id: 2, username: 'recipient' };
 
-            Event.findByPk.mockResolvedValue(mockEvent);
+            EventRepository.findRecipient.mockResolvedValue(mockRecipient);
 
             const result = await EventService.findRecipient(1);
 
-            expect(Event.findByPk).toHaveBeenCalledWith(1, {
-                include: [{
-                    model: User,
-                    as: 'recipient'
-                }]
-            });
-            expect(result).toEqual(mockEvent.recipient);
+            expect(EventRepository.findRecipient).toHaveBeenCalledWith(1);
+            expect(result).toEqual(mockRecipient);
         });
 
         it('should return null if event not found', async () => {
-            Event.findByPk.mockResolvedValue(null);
+            EventRepository.findRecipient.mockResolvedValue(null);
 
             const result = await EventService.findRecipient(1);
 
@@ -869,7 +803,7 @@ describe('EventService', () => {
         });
 
         it('should handle database errors in findRecipient', async () => {
-            Event.findByPk.mockRejectedValue(new Error('Database error'));
+            EventRepository.findRecipient.mockRejectedValue(new Error('Database error'));
 
             await expect(EventService.findRecipient(1))
                 .rejects
@@ -892,21 +826,16 @@ describe('EventService', () => {
                 }
             ];
 
-            Participation.findAll.mockResolvedValue(mockParticipations);
+            ParticipationRepository.findByEvent.mockResolvedValue(mockParticipations);
 
             const result = await EventService.findParticipations(1);
 
-            expect(Participation.findAll).toHaveBeenCalledWith({
-                where: { eventId: 1 },
-                include: [
-                    { model: User, as: 'user' }
-                ]
-            });
+            expect(ParticipationRepository.findByEvent).toHaveBeenCalledWith(1);
             expect(result).toEqual(mockParticipations);
         });
 
         it('should handle database errors in findParticipations', async () => {
-            Participation.findAll.mockRejectedValue(new Error('Database error'));
+            ParticipationRepository.findByEvent.mockRejectedValue(new Error('Database error'));
 
             await expect(EventService.findParticipations(1))
                 .rejects

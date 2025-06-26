@@ -9,7 +9,7 @@ describe('jwtUtils Constants Integration', () => {
 
     describe('token expiration configuration', () => {
         it('should use correct expiration times from constants', () => {
-            expect(AUTH_CONFIG.JWT_EXPIRES_IN).toBe('15m');
+            expect(AUTH_CONFIG.JWT_EXPIRES_IN).toBe('30m');
             expect(AUTH_CONFIG.REFRESH_EXPIRES_IN).toBe('7d');
         });
     });

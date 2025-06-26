@@ -1,32 +1,34 @@
-const { User } = require('../model');
 const ApiError = require('../exception/ApiError');
-const createUserSchema = require("../validation/schema/UserSchema");
 const { initializeUser, onUserBankUpdated } = require('../utils/achievement');
+const { UserRepository } = require('../repository');
 const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const mailService = require('../utils/mail/mailService');
-const { AUTH_CONFIG, VALIDATION_LIMITS } = require('../constants');
+const { AUTH_CONFIG, VALIDATION_LIMITS, TRANSACTION_TYPES } = require('../constants');
 
+/**
+ * Service layer for user management and authentication
+ * Handles user registration, activation, authentication, profile management,
+ * balance operations, and integration with achievement and email systems
+ */
 class UserService {
 
+    /**
+     * Creates a new user account with email verification and achievement initialization
+     * Handles password hashing, activation link generation, and sends activation email
+     * @param {Object} data - User registration data
+     * @param {string} data.username - Unique username for the user
+     * @param {string} data.email - Email address for login and verification
+     * @param {string} data.password - Plain text password to be hashed
+     * @param {string} [data.image] - Optional profile image URL
+     * @returns {Promise<User>} Created user object with activation link
+     * @throws {ApiError} Conflict error if email/username exists or database error
+     */
     async create(data) {
-        
-        const { error } = createUserSchema.validate(data);
-        if (error) {
-            throw ApiError.validation('Validation failed', error.details.map(d => d.message));
-        }
-
         try {
-            // Check if user already exists
-            const existingUser = await User.findOne({
-                where: {
-                    [Op.or]: [
-                        { email: data.email },
-                        { username: data.username }
-                    ]
-                }
-            });
+            // Check if user already exists with same email or username
+            const existingUser = await UserRepository.findByEmailOrUsername(data.email, data.username);
 
             if (existingUser) {
                 const conflictDetails = [];
@@ -39,13 +41,13 @@ class UserService {
                 throw ApiError.conflict('User with this credentials already exists', conflictDetails);
             }
 
-            // Hash password before saving
+            // Hash password before saving for security
             const hashedPassword = await bcrypt.hash(data.password, AUTH_CONFIG.BCRYPT_SALT_ROUNDS);
 
-            // Generate activation link
+            // Generate unique activation link for email verification
             const activationLink = crypto.randomBytes(32).toString('hex');
 
-            const user = await User.create({
+            const user = await UserRepository.create({
                 username: data.username,
                 password: hashedPassword,
                 email: data.email,
@@ -62,15 +64,15 @@ class UserService {
                 
             } catch (emailError) {
                 //console.error('Failed to send activation email:', emailError);
-                // Don't fail registration if email fails to send
+                // Don't fail registration if email service is unavailable
             }
 
-            // Initialize achievements for a new user
+            // Initialize achievement system for new user
             try {
                 await initializeUser(user.id);
             } catch (achievementError) {
                 //console.error('Failed to initialize user achievements:', achievementError);
-                // Don't fail if achievements initialization fails
+                // Don't fail registration if achievement initialization fails
             }
 
             return user;
@@ -82,6 +84,13 @@ class UserService {
         }
     }
 
+    /**
+     * Activates a user account using the provided activation link
+     * Verifies the link, checks activation status, and marks user as activated
+     * @param {string} activationLink - Unique activation token from email
+     * @returns {Promise<User>} Activated user object with associations
+     * @throws {ApiError} Bad request if link is invalid/expired or user already activated
+     */
     async activate(activationLink) {
         try {
             if (!activationLink) {
@@ -89,9 +98,7 @@ class UserService {
             }
 
             // Find user by activation link
-            const user = await User.findOne({
-                where: { activationLink: activationLink }
-            });
+            const user = await UserRepository.findByActivationLink(activationLink);
 
             if (!user) {
                 throw ApiError.badRequest('Invalid activation link');
@@ -102,20 +109,9 @@ class UserService {
             }
 
             // Activate user and clear activation link
-            await User.update(
-                { 
-                    isActivated: true, 
-                    activationLink: null 
-                },
-                { where: { id: user.id } }
-            );
+            await UserRepository.activate(user.id);
 
-            return await User.findByPk(user.id, {
-                include: [
-                    { association: 'createdEvents' },
-                    { association: 'receivedEvents' }
-                ]
-            });
+            return await UserRepository.findByIdWithAssociations(user.id);
         } catch (e) {
             if (e instanceof ApiError) {
                 throw e;
@@ -124,16 +120,21 @@ class UserService {
         }
     }
 
+    /**
+     * Resends activation email for users who haven't received or lost their activation link
+     * Generates new activation link if needed and handles email delivery
+     * @param {string} email - Email address of the user requesting resend
+     * @returns {Promise<boolean>} True if email was sent successfully
+     * @throws {ApiError} Not found if user doesn't exist, bad request if already activated
+     */
     async resendActivationEmail(email) {
         try {
             if (!email) {
                 throw ApiError.badRequest('Email is required');
             }
 
-            // Find user by email
-            const user = await User.findOne({
-                where: { email: email }
-            });
+            // Find user by email address
+            const user = await UserRepository.findByEmail(email);
 
             if (!user) {
                 throw ApiError.notFound('User with this email not found');
@@ -146,10 +147,7 @@ class UserService {
             if (!user.activationLink) {
                 // Generate new activation link if it doesn't exist
                 const activationLink = crypto.randomBytes(32).toString('hex');
-                await User.update(
-                    { activationLink: activationLink },
-                    { where: { id: user.id } }
-                );
+                await UserRepository.updateActivationLink(user.id, activationLink);
                 user.activationLink = activationLink;
             }
 
@@ -184,6 +182,14 @@ class UserService {
         }
     }
 
+    /**
+     * Verifies a plain text password against a hashed password
+     * Used during login authentication and password change verification
+     * @param {string} plainPassword - Plain text password to verify
+     * @param {string} hashedPassword - Hashed password from database
+     * @returns {Promise<boolean>} True if passwords match, false otherwise
+     * @throws {ApiError} Bad request if verification process fails
+     */
     async verifyPassword(plainPassword, hashedPassword) {
         try {
             return await bcrypt.compare(plainPassword, hashedPassword);
@@ -192,19 +198,27 @@ class UserService {
         }
     }
 
+    /**
+     * Updates user balance based on transaction type and amount
+     * Handles both income and outcome transactions with validation and achievement tracking
+     * @param {Object} data - Balance update data
+     * @param {number} data.amount - Transaction amount (must be positive)
+     * @param {string} data.type - Transaction type from TRANSACTION_TYPES constants
+     * @param {number} data.userId - ID of the user whose balance to update
+     * @returns {Promise<Object>} Object containing the new balance
+     * @returns {number} returns.newBalance - Updated user balance
+     * @throws {ApiError} Business logic errors for insufficient balance or invalid data
+     */
     async updateBalance(data) {
         try {
             const { amount, type, userId } = data;
 
-            // validation of input data
+            // Validate that amount is positive
             if (amount <= 0) {
                 throw ApiError.businessLogic('Amount must be positive', ['Amount cannot be zero or negative']);
             }
 
-            const user = await User.findOne({
-                where: { id: userId },
-                attributes: ['balance'],
-            });
+            const user = await UserRepository.findByIdWithBalance(userId);
 
             if (!user) {
                 throw ApiError.notFound('User not found');
@@ -212,19 +226,20 @@ class UserService {
 
             let addedAmountIsPositive = true;
 
+            // Determine if transaction increases or decreases balance
             switch (type) {
-                case 'BALANCE_INCOME':
-                case 'EVENT_INCOME':
-                case 'GIFT':
+                case TRANSACTION_TYPES.BALANCE_INCOME:
+                case TRANSACTION_TYPES.EVENT_INCOME:
+                case TRANSACTION_TYPES.GIFT:
                     addedAmountIsPositive = true;
                     break;
-                case 'BALANCE_OUTCOME':
-                case 'EVENT_OUTCOME':
+                case TRANSACTION_TYPES.BALANCE_OUTCOME:
+                case TRANSACTION_TYPES.EVENT_OUTCOME:
                     addedAmountIsPositive = false;
                     break;
                 default:
                     throw ApiError.businessLogic('Invalid transaction type', [
-                        'Valid types are: BALANCE_INCOME, EVENT_INCOME, GIFT, BALANCE_OUTCOME, EVENT_OUTCOME'
+                        `Valid types are: ${Object.values(TRANSACTION_TYPES).join(', ')}`
                     ]);
             }
 
@@ -233,6 +248,7 @@ class UserService {
                 ? currentBalance + amount 
                 : currentBalance - amount;
 
+            // Prevent negative balance
             if (newBalance < 0) {
                 throw ApiError.businessLogic('Insufficient balance', [
                     `Current balance: ${currentBalance}`,
@@ -241,17 +257,14 @@ class UserService {
                 ]);
             }
 
-            await User.update(
-                { balance: newBalance },
-                { where: { id: userId } }
-            );
+            await UserRepository.updateBalance(userId, newBalance);
 
-            // Track user bank updates for achievements
+            // Track balance changes for achievement system (non-blocking)
             try {
                 await onUserBankUpdated(userId, newBalance);
             } catch (achievementError) {
                 //console.error('Failed to update achievement tracking:', achievementError);
-                // don't fail if achievement tracking update fails
+                // Don't fail balance update if achievement tracking fails
             }
 
             return { newBalance };
@@ -263,38 +276,59 @@ class UserService {
         }
     }
 
+    /**
+     * Retrieves all users with minimal data (only IDs)
+     * Used for system statistics and bulk operations
+     * @returns {Promise<User[]>} Array of users with minimal fields
+     * @throws {ApiError} Bad request if operation fails
+     */
     async getAllUsers() {
         try {
-            return await User.findAll({ 
-                attributes: ['id'] 
-            });
+            return await UserRepository.findAllMinimal();
         } catch (e) {
             throw ApiError.badRequest('Error getting all users', e.message);
         }
     }
 
+    /**
+     * Finds a user by ID with only balance information
+     * Optimized for quick balance checks without loading unnecessary data
+     * @param {number} userId - ID of the user
+     * @returns {Promise<User>} User object with ID and balance fields
+     * @throws {ApiError} Bad request if user not found or operation fails
+     */
     async findByIdWithBalance(userId) {
         try {
-            return await User.findByPk(userId, { 
-                attributes: ['id', 'balance'] 
-            });
+            return await UserRepository.findByIdWithBalance(userId);
         } catch (e) {
             throw ApiError.badRequest('Error finding user with balance', e.message);
         }
     }
 
+    /**
+     * Updates user profile information with comprehensive validation
+     * Handles username, email, and password updates with conflict checking
+     * @param {number} id - ID of the user to update
+     * @param {Object} data - Update data
+     * @param {string} [data.username] - New username (validated for uniqueness and format)
+     * @param {string} [data.email] - New email (validated for format and uniqueness)
+     * @param {string} [data.currentPassword] - Current password for verification
+     * @param {string} [data.newPassword] - New password (requires currentPassword)
+     * @returns {Promise<User>} Updated user object with associations
+     * @throws {ApiError} Bad request for validation errors or conflicts
+     */
     async update(id, data) {
         try {
-            const user = await User.findByPk(id);
+            const user = await UserRepository.findByPk(id);
             if (!user) {
                 throw ApiError.badRequest('User not found');
             }
 
             const updateData = {};
 
-            // update username
+            // Update username with validation
             if (data.username && data.username !== user.username) {
-                // Validate username
+                // Validate username length and format
                 if (data.username.length < VALIDATION_LIMITS.USERNAME_MIN_LENGTH) {
                     throw ApiError.badRequest(`Username must be at least ${VALIDATION_LIMITS.USERNAME_MIN_LENGTH} characters long`);
                 }
@@ -305,20 +339,15 @@ class UserService {
                     throw ApiError.badRequest('Username can only contain letters, numbers and underscore');
                 }
 
-                // check if username is already taken
-                const existingUser = await User.findOne({
-                    where: { 
-                        username: data.username,
-                        id: { [Op.ne]: id } 
-                    }
-                });
-                if (existingUser) {
+                // Check for username uniqueness
+                const existingUser = await UserRepository.findByUsername(data.username);
+                if (existingUser && existingUser.id !== id) {
                     throw ApiError.badRequest('Username already exists');
                 }
                 updateData.username = data.username;
             }
 
-            // update email
+            // Update email with validation
             if (data.email && data.email !== user.email) {
                 // Validate email format
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -326,22 +355,17 @@ class UserService {
                     throw ApiError.badRequest('Please enter a valid email address');
                 }
 
-                // check if email is already taken
-                const existingUser = await User.findOne({
-                    where: { 
-                        email: data.email,
-                        id: { [Op.ne]: id } 
-                    }
-                });
-                if (existingUser) {
+                // Check for email uniqueness
+                const existingUser = await UserRepository.findByEmail(data.email);
+                if (existingUser && existingUser.id !== id) {
                     throw ApiError.badRequest('Email already exists');
                 }
                 updateData.email = data.email;
             }
 
-            // update password
+            // Update password with validation
             if (data.newPassword && data.currentPassword) {
-                // Validate new password
+                // Validate new password strength
                 if (data.newPassword.length < VALIDATION_LIMITS.PASSWORD_MIN_LENGTH) {
                     throw ApiError.badRequest(`Password must be at least ${VALIDATION_LIMITS.PASSWORD_MIN_LENGTH} characters long`);
                 }
@@ -349,7 +373,7 @@ class UserService {
                     throw ApiError.badRequest(`Password cannot exceed ${VALIDATION_LIMITS.PASSWORD_MAX_LENGTH} characters`);
                 }
 
-                // check current password with bcrypt
+                // Verify current password before allowing change
                 const isCurrentPasswordValid = await this.verifyPassword(data.currentPassword, user.password);
                 if (!isCurrentPasswordValid) {
                     throw ApiError.badRequest('Current password is incorrect');
@@ -359,40 +383,28 @@ class UserService {
                 updateData.password = await bcrypt.hash(data.newPassword, AUTH_CONFIG.BCRYPT_SALT_ROUNDS);
             }
 
-            // update user
+            // Apply updates if any changes were made
             if (Object.keys(updateData).length > 0) {
-                await User.update(updateData, { where: { id } });
+                await UserRepository.update(id, updateData);
             }
 
-            // return updated user
-            return await User.findByPk(id, {
-                include: [
-                    { association: 'createdEvents' },
-                    { association: 'receivedEvents' }
-                ]
-            });
+            // Return updated user with all associations
+            return await UserRepository.findByIdWithAssociations(id);
         } catch (e) {
             throw ApiError.badRequest(e.message || 'Failed to update user');
         }
     }
 
+    /**
+     * Finds a user by ID with optional associations
+     * @param {number} userId - ID of the user to find
+     * @param {boolean} includeAssociations - Whether to include events and accounts
+     * @returns {Promise<User>} User object with or without associations
+     * @throws {ApiError} Database error if user not found or operation fails
+     */
     async findById(userId, includeAssociations = true) {
         try {
-            const includeOptions = includeAssociations ? [
-                { association: 'createdEvents' },
-                { association: 'receivedEvents' },
-                { model: require('../model').Account }
-            ] : [];
-
-            const user = await User.findByPk(userId, {
-                include: includeOptions
-            });
-
-            if (!user) {
-                throw ApiError.notFound('User not found');
-            }
-
-            return user;
+            return await UserRepository.findByIdWithAssociations(userId, includeAssociations);
         } catch (e) {
             if (e instanceof ApiError) {
                 throw e;
@@ -401,84 +413,78 @@ class UserService {
         }
     }
 
+    /**
+     * Finds all users with optional associations
+     * @param {boolean} includeAssociations - Whether to include events data
+     * @returns {Promise<User[]>} Array of users with or without associations
+     * @throws {ApiError} Database error if operation fails
+     */
     async findAll(includeAssociations = true) {
         try {
-            const includeOptions = includeAssociations ? [
-                { association: 'createdEvents' },
-                { association: 'receivedEvents' }
-            ] : [];
-
-            return await User.findAll({
-                include: includeOptions
-            });
+            return await UserRepository.findAllWithAssociations(includeAssociations);
         } catch (e) {
             throw ApiError.database('Error finding all users', e);
         }
     }
 
+    /**
+     * Searches for users by partial username match
+     * @param {string} username - Partial username to search for
+     * @param {boolean} includeAssociations - Whether to include events data
+     * @returns {Promise<User[]>} Array of matching users
+     * @throws {ApiError} Database error if search fails
+     */
     async searchByUsername(username, includeAssociations = true) {
         try {
-            const includeOptions = includeAssociations ? [
-                { association: 'createdEvents' },
-                { association: 'receivedEvents' }
-            ] : [];
-
-            return await User.findAll({
-                where: {
-                    username: {
-                        [Op.like]: `%${username}%`
-                    }
-                },
-                include: includeOptions
-            });
+            return await UserRepository.searchByUsername(username, includeAssociations);
         } catch (e) {
             throw ApiError.database('Error searching users by username', e);
         }
     }
 
+    /**
+     * Finds all OAuth accounts linked to a user
+     * @param {number} userId - ID of the user
+     * @returns {Promise<Account[]>} Array of linked OAuth accounts
+     * @throws {ApiError} Database error if operation fails
+     */
     async findAccounts(userId) {
         try {
-            const { Account } = require('../model');
-            return await Account.findAll({
-                where: { userId: userId }
-            });
+            const { AccountRepository } = require('../repository');
+            return await AccountRepository.findByUserId(userId);
         } catch (e) {
             throw ApiError.database('Error finding user accounts', e);
         }
     }
 
+    /**
+     * Finds a user by email address
+     * @param {string} email - Email address to search for
+     * @returns {Promise<User|null>} User object or null if not found
+     * @throws {ApiError} Database error if operation fails
+     */
     async findByEmail(email) {
         try {
-            const user = await User.findOne({
-                where: { email: email }
-            });
-            return user;
+            return await UserRepository.findByEmail(email);
         } catch (e) {
             throw ApiError.database('Error finding user by email', e);
         }
     }
 
+    /**
+     * Finds a user by ID with accounts included
+     * @param {number} userId - ID of the user
+     * @returns {Promise<User>} User object with linked accounts
+     * @throws {ApiError} Database error if user not found or operation fails
+     */
     async findByIdWithAccountsOnly(userId) {
         try {
-            const { Account } = require('../model');
-            const user = await User.findByPk(userId, {
-                include: [
-                    { association: 'createdEvents' },
-                    { association: 'receivedEvents' },
-                    { model: Account }
-                ]
-            });
-
-            if (!user) {
-                throw ApiError.notFound('User not found');
-            }
-
-            return user;
+            return await UserRepository.findByIdWithAssociations(userId, true);
         } catch (e) {
             if (e instanceof ApiError) {
                 throw e;
             }
-            throw ApiError.database('Error finding user by ID with accounts', e);
+            throw ApiError.database('Error finding User by ID', e);
         }
     }
 

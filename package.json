@@ -11,9 +11,6 @@
     "test:coverage": "jest --coverage",
     "reset-db": "node script/resetDb.js",
     "seed": "node script/runSeeders.js",
-    "seed:achievements": "node script/runSeeders.js achievements",
-    "seed:testdata": "node script/runSeeders.js testdata",
-    "seed:prod": "node script/runSeeders.js production",
     "docs:generate": "graphdoc -e http://localhost:3000/graphql -o ./docs --force",
     "docs:serve": "npx http-server ./docs -p 8080 -o",
     "docs": "npm run docs:generate && npm run docs:serve",
@@ -64,7 +61,8 @@
     "collectCoverageFrom": [
       "graphql/schema/resolvers/**/*.js",
       "service/**/*.js",
-      "utils/**/*.js"
+      "utils/**/*.js",
+      "repository/**/*.js"
     ],
     "testMatch": [
       "**/__tests__/**/*.test.js"
