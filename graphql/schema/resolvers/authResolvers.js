@@ -1,5 +1,7 @@
 const { userService, tokenService, accountService } = require('../../../service');
 const { generateToken, generateRefreshToken, verifyRefreshToken } = require('../../../utils/jwtUtils');
+const createUserSchema = require('../../../validation/schema/UserSchema');
+const { handleServiceError } = require('../../utils/errorHandler');
 const axios = require('axios');
 const crypto = require('crypto');
 
@@ -31,7 +33,8 @@ const authResolvers = {
                     throw new Error('Invalid email or password');
                 }
 
-                // Check if user is activated
+                // Check if user is activated - currently commented out
+                // This allows login without email verification
                 /*
                 if (!user.isActivated) {
                     throw new Error('Account is not activated. Please check your email for activation link.');
@@ -48,7 +51,7 @@ const authResolvers = {
                 const accessToken = generateToken(user);
                 const refreshToken = generateRefreshToken(user);
 
-                // Save refresh token to database
+                // Save refresh token to database for future token refresh operations
                 await tokenService.saveToken(user.id, refreshToken);
 
                 // Get complete user information with associations
@@ -61,7 +64,7 @@ const authResolvers = {
                 };
             } catch (error) {
                 console.error('Login error:', error);
-                throw new Error(error.message || 'Login failed');
+                handleServiceError(error, 'Login failed');
             }
         },
         
@@ -80,6 +83,11 @@ const authResolvers = {
          */
         register: async (_, { username, email, password }) => {
             try {
+                const { error } = createUserSchema.validate({ username, email, password });
+                if (error) {
+                    throw new Error(`Validation error: ${error.details.map(d => d.message).join(', ')}`);
+                }
+
                 // Create new user account through userService
                 const user = await userService.create({
                     username,
@@ -104,7 +112,7 @@ const authResolvers = {
                 };
             } catch (error) {
                 //console.error('Registration error:', error);
-                throw new Error(error.message || 'Registration failed');
+                handleServiceError(error, 'Registration failed');
             }
         },
 
@@ -133,16 +141,17 @@ const authResolvers = {
                 const discordEmail = discordUser.email;
                 const discordUsername = discordUser.username;
                 const discordDiscriminator = discordUser.discriminator;
+                // Build Discord avatar URL or null if no avatar set
                 const discordAvatar = discordUser.avatar ? 
                     `https://cdn.discordapp.com/avatars/${discordId}/${discordUser.avatar}.png` : null;
 
-                // Check if account already exists
+                // Check if account already exists by Discord ID
                 let account = await accountService.findByProviderAndAccountId('discord', discordId);
 
                 let user;
 
                 if (account) {
-                    // User exists, update account data
+                    // Existing Discord account found - update with latest Discord data
                     await accountService.updateByProviderAndAccountId('discord', discordId, {
                         access_token: accessToken,
                         providerUsername: discordUsername,
@@ -152,20 +161,21 @@ const authResolvers = {
                     });
                     user = account.User;
                 } else {
-                    // Check if user exists by email
+                    // No existing Discord account - check if user exists by email
                     user = await userService.findByEmail(discordEmail);
 
                     if (!user) {
-                        // Create new user
+                        // Create completely new user account from Discord data
                         user = await userService.create({
                             email: discordEmail,
                             username: discordUsername,
+                            // Generate random password since user will authenticate via Discord
                             password: crypto.randomBytes(12).toString('base64').slice(0, 12),
                             image: discordAvatar,
                         });
                     }
 
-                    // Create new Discord account
+                    // Create new Discord account link for existing or new user
                     account = await accountService.create({
                         id: `discord_${discordId}_${user.id}`,
                         userId: user.id,
@@ -197,7 +207,7 @@ const authResolvers = {
                 };
             } catch (error) {
                 //console.error('Discord auth error:', error);
-                throw new Error(error.message || 'Discord authentication failed');
+                handleServiceError(error, 'Discord authentication failed');
             }
         },
 
@@ -247,7 +257,7 @@ const authResolvers = {
                 return authResolvers.Mutation.discordAuth(_, { accessToken: access_token });
             } catch (error) {
                 console.error('Discord auth code error:', error.response?.data || error);
-                throw new Error(error.response?.data?.error_description || 'Discord authentication failed');
+                handleServiceError(error, error.response?.data?.error_description || 'Discord authentication failed');
             }
         },
 
@@ -264,6 +274,7 @@ const authResolvers = {
          * @throws {Error} If user is not authenticated or Discord account already linked
          */
         linkDiscordAccount: async (_, { code, redirectUri, codeVerifier }, { user }) => {
+            // Verify user is authenticated before allowing account linking
             if (!user) {
                 return {
                     success: false,
@@ -273,7 +284,7 @@ const authResolvers = {
             }
 
             try {
-                // Check if user already has Discord account linked
+                // Prevent duplicate Discord account links for the same user
                 const existingAccount = await accountService.findByUserAndProvider(user.id, 'discord');
 
                 if (existingAccount) {
@@ -284,7 +295,7 @@ const authResolvers = {
                     };
                 }
 
-                // Prepare token exchange parameters
+                // Prepare token exchange parameters for Discord OAuth
                 const tokenParams = {
                     client_id: process.env.DISCORD_CLIENT_ID,
                     client_secret: process.env.DISCORD_CLIENT_SECRET,
@@ -293,7 +304,7 @@ const authResolvers = {
                     redirect_uri: redirectUri,
                 };
 
-                // Add code_verifier if provided (PKCE flow)
+                // Add PKCE code verifier if provided for enhanced security
                 if (codeVerifier) {
                     tokenParams.code_verifier = codeVerifier;
                 }
@@ -333,7 +344,7 @@ const authResolvers = {
                 const discordAvatar = discordUser.avatar ? 
                     `https://cdn.discordapp.com/avatars/${discordId}/${discordUser.avatar}.png` : null;
 
-                // Check if this Discord account is already linked to another user
+                // Prevent linking Discord account that's already linked to another user
                 const existingDiscordAccount = await accountService.findByProviderAndAccountId('discord', discordId);
 
                 if (existingDiscordAccount) {
@@ -344,7 +355,7 @@ const authResolvers = {
                     };
                 }
 
-                // Create new Discord account link
+                // Create new Discord account link for the current user
                 await accountService.create({
                     id: `discord_${discordId}_${user.id}`,
                     userId: user.id,
@@ -358,7 +369,7 @@ const authResolvers = {
                     providerDiscriminator: discordDiscriminator
                 });
 
-                // Return updated user with accounts
+                // Return updated user with the new Discord account link
                 const updatedUser = await userService.findByIdWithAccountsOnly(user.id);
 
                 return {
@@ -454,7 +465,7 @@ const authResolvers = {
                 } else if (error.message.includes('User not found')) {
                     throw new Error('User account not found');
                 } else {
-                    throw new Error(error.message || 'Token refresh failed');
+                    handleServiceError(error, 'Token refresh failed');
                 }
             }
         },
@@ -479,7 +490,7 @@ const authResolvers = {
                 return true;
             } catch (error) {
                 console.error('Logout error:', error);
-                throw new Error(error.message || 'Logout failed');
+                handleServiceError(error, 'Logout failed');
             }
         },
 
@@ -499,7 +510,7 @@ const authResolvers = {
                 return user;
             } catch (error) {
                 console.error('User activation error:', error);
-                throw new Error(error.message || 'User activation failed');
+                handleServiceError(error, 'User activation failed');
             }
         },
 
@@ -519,7 +530,7 @@ const authResolvers = {
                 return result;
             } catch (error) {
                 console.error('Resend activation email error:', error);
-                throw new Error(error.message || 'Failed to resend activation email');
+                handleServiceError(error, 'Failed to resend activation email');
             }
         }
     }

@@ -1,4 +1,5 @@
 const { userService, participationService } = require('../../../service');
+const { handleServiceError } = require('../../utils/errorHandler');
 
 /**
  * GraphQL resolvers for User-related operations
@@ -51,6 +52,56 @@ const userResolvers = {
                 console.error('Error searching users:', error);
                 return [];
             }
+        },
+
+        /**
+         * Retrieves users ranked by their current balance
+         * @param {Object} _ - Parent object (unused)
+         * @param {Object} args - Query arguments
+         * @param {number} [args.limit] - Maximum number of users to return
+         * @returns {Promise<UserRanking[]>} Array of users with their balance amounts
+         */
+        usersByBalance: async (_, { limit }) => {
+            try {
+                return await userService.getUsersByBalance(limit);
+            } catch (error) {
+                console.error('Error fetching users by balance:', error);
+                return [];
+            }
+        },
+
+        /**
+         * Retrieves users ranked by their EVENT_INCOME transaction sum after specified date
+         * @param {Object} _ - Parent object (unused)
+         * @param {Object} args - Query arguments
+         * @param {string} [args.afterDate] - ISO date string to filter transactions after (not older than)
+         * @param {number} [args.limit] - Maximum number of users to return
+         * @returns {Promise<UserRanking[]>} Array of users with their EVENT_INCOME sum amounts
+         */
+        usersByEventIncome: async (_, { afterDate, limit }) => {
+            try {
+                return await userService.getUsersByEventIncome(afterDate, limit);
+            } catch (error) {
+                console.error('Error fetching users by event income:', error);
+                return [];
+            }
+        },
+
+        /**
+         * Retrieves users ranked by their EVENT_OUTCOME transaction sum after specified date
+         * @param {Object} _ - Parent object (unused)
+         * @param {Object} args - Query arguments
+         * @param {string} [args.afterDate] - ISO date string to filter transactions after (not older than)
+         * @param {number} [args.limit] - Maximum number of users to return
+         * @returns {Promise<UserRanking[]>} Array of users with their EVENT_OUTCOME sum amounts
+         */
+        usersByEventOutcome: async (_, { afterDate, limit }) => {
+            try {
+                return await userService.getUsersByEventOutcome(afterDate, limit);
+            } catch (error) {
+                console.error('Error fetching users by event outcome:', error);
+                return [];
+            }
         }
     },
 
@@ -74,7 +125,7 @@ const userResolvers = {
                 return updatedUser;
             } catch (error) {
                 console.error('Error updating user:', error);
-                throw new Error(error.message || 'Failed to update user');
+                handleServiceError(error, 'Failed to update user');
             }
         },
     },

@@ -1,16 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * Script to run seeders from the command line
- * 
- * Usage:
- *   node script/runSeeders.js                    - run all seeders
- *   node script/runSeeders.js achievements       - only achievements
- *   node script/runSeeders.js testdata           - only test data
- *   node script/runSeeders.js production         - production data
- *   node script/runSeeders.js clear              - only clear database
- */
-
 require('dotenv').config();
 
 const { 
@@ -32,25 +21,11 @@ async function main() {
                 console.log('Clearing database...');
                 await smartClearDatabase();
                 break;
-                
-            case 'achievements':
-            case 'achievement':
-                console.log('Running achievements seeder...');
-                await seedAchievements();
-                break;
-                
             case 'testdata':
             case 'test':
                 console.log('Running test data seeder...');
                 await seedTestData();
                 break;
-                
-            case 'production':
-            case 'prod':
-                console.log('Running production seeders...');
-                await seedProductionData();
-                break;
-                
             case 'all':
             default:
                 console.log('Running all seeders...');
