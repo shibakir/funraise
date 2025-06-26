@@ -514,3 +514,52 @@ When everything is working correctly, you should see:
 - Access GraphQL Playground at http://localhost:3000/graphql
 - Use the API for your mobile application
 - Database is ready with test data and achievements
+
+## 📁 Project structure
+
+### Basic directories
+```
+server/
+├── 📁 __tests__/           # Unit and integration tests
+├── 📁 constants/           # Application-wide constants
+├── 📁 docs/                # Auto-generated GraphQL documentation
+├── 📁 exception/           # Custom exceptions
+├── 📁 graphql/             # GraphQL schema and resolvers
+│   ├── 📁 schema/          # GraphQL types and resolvers
+│   └── 📁 utils/           # GraphQL-specific utilities
+├── 📁 middleware/          # Express middleware
+├── 📁 model/               # Sequelize database models
+├── 📁 repository/          # Data access layer
+├── 📁 routes/              # REST API routes
+├── 📁 script/              # Database management scripts
+├── 📁 seeder/              # Seeders for populating the database
+├── 📁 service/             # Business logic layer
+├── 📁 utils/               # General-purpose utilities
+│   ├── 📁 achievement/     # Achievement and gamification system
+│   ├── 📁 eventCondition/  # Event condition tracking
+│   ├── 📁 mail/            # Email services
+│   ├── 📁 media/           # Media file handling
+│   └── 📁 user/            # User-related utilities
+└── 📁 validation/          # Input data validation
+```
+
+### Key Files
+
+- **`app.js`** - Application entry point
+- **`graphql/server.js`** - GraphQL server setup
+- **`model/db.js`** - Database configuration
+- **`middleware/authMiddleware.js`** - Authentication and authorization
+- **`utils/achievement/`** - Achievement and gamification system
+- **`utils/eventCondition/`** - Tracking event completion conditions
+- **`service/`** - Business logic (users, events, transactions)
+- **`repository/`** - Data access abstraction
+- **`model/`** - Sequelize models for MySQL
+
+### Architectural layers
+
+1. **GraphQL Layer** - API interface and schema
+2. **Service Layer** - Business logic and validation
+3. **Repository Layer** - Data access abstraction
+4. **Model Layer** - ORM models and relationships
+5. **Database Layer** - MySQL database
+
